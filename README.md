@@ -1,6 +1,9 @@
 Process Watch
 =============
 
+This is an example of Process Watch running on an Ice Lake system executing a modern openSSL benchmark. Note the presence of [AVX512-IFMA](https://en.wikipedia.org/wiki/AVX-512#IFMA) instructions.
+![image](https://user-images.githubusercontent.com/87155110/203640800-ad79159d-c7d7-4565-ba94-0a1b66552076.png)
+
 Overview
 --------
 
