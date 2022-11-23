@@ -1,0 +1,15 @@
+[submodule "deps/bpftool"]
+	path = deps/bpftool
+	url = https://github.com/libbpf/bpftool.git
+[submodule "deps/ncurses"]
+	path = deps/ncurses
+	url = https://github.com/mirror/ncurses.git
+[submodule "deps/pmu-tools"]
+	path = deps/pmu-tools
+	url = https://github.com/andikleen/pmu-tools.git
+[submodule "deps/tinyexpr"]
+	path = deps/tinyexpr
+	url = https://github.com/codeplea/tinyexpr.git
+[submodule "deps/zydis"]
+	path = deps/zydis
+	url = https://github.com/zyantific/zydis.git

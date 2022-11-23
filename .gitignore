@@ -1,0 +1,13 @@
+src/processwatch
+src/processwatch.o
+src/tinyexpr.o
+processwatch
+
+.yed*
+
+deps/install
+deps/build_logs
+
+src/bpf/tma/maps/
+src/bpf/tma/perf_slots.bpf.o
+src/bpf/tma/perf_slots.skel.h
