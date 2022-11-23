@@ -1,7 +1,7 @@
 Process Watch
 =============
 
-This is an example of Process Watch running on an Ice Lake system executing a modern openSSL benchmark. Note the presence of [AVX512-IFMA](https://en.wikipedia.org/wiki/AVX-512#IFMA) instructions.
+This is an example of Process Watch running on an Intel® NUC running the [LULESH](https://github.com/LLNL/LULESH) workload. Note the presence of AVX, AVX2, and VFMA instructions.
 ![image](https://user-images.githubusercontent.com/87155110/203642236-756ae342-b860-4cb4-8f8d-7de494218eeb.png)
 
 Overview
