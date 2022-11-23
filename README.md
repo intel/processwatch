@@ -1,8 +1,6 @@
 Process Watch
 =============
 
-This is an example of Process Watch running on an ICX system executing a modern openSSL benchmark. Note the presence of IFMA (Ice Lake cryptographic instructions).
-
 Overview
 --------
 

@@ -11,3 +11,7 @@ deps/build_logs
 src/bpf/tma/maps/
 src/bpf/tma/perf_slots.bpf.o
 src/bpf/tma/perf_slots.skel.h
+
+src/bpf/insn/insn.bpf.o
+src/bpf/insn/insn.skel.h
+src/bpf/insn/vmlinux.h
