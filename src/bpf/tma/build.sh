@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: GPL-2.0-only
+
 # This script uses `awk` to construct maps.h.
 # Instead of using preprocessor trickery, we
 # simply loop over a counter (starting at 0)

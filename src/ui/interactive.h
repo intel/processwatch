@@ -1,3 +1,6 @@
+/* Copyright (C) 2022 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #pragma once
 
 #include <ncurses.h>

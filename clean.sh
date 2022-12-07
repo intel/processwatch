@@ -1,4 +1,7 @@
 #!/bin/bash
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: GPL-2.0-only
+
 ###################################################################
 #                           CLEAN.SH
 # Cleans all dependency installations, build logs, and artifacts

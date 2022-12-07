@@ -1,11 +1,14 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: GPL-2.0-only
+
 ###################################################################
 #                           BUILD.SH
 # This is the main build script for Process Watch. It first uses
 # `build_deps.sh` to build the dependencies in the `deps` directory,
 # then builds the BPF and userspace programs.
 ###################################################################
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # USER-CHANGEABLE OPTIONS
 export CLANG="clang"

@@ -1,3 +1,6 @@
+/* Copyright (C) 2022 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #ifndef INSNPROF_DETECT_PMU
 #define INSNPROF_DETECT_PMU
 

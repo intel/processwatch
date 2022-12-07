@@ -1,3 +1,6 @@
+/* Copyright (C) 2022 Intel Corporation */
+/* SPDX-License-Identifier: GPL-2.0-only */
+
 #ifndef INSN_H
 #define INSN_H
 

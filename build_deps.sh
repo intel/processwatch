@@ -1,10 +1,13 @@
 #!/bin/bash
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+# Copyright (C) 2022 Intel Corporation
+# SPDX-License-Identifier: GPL-2.0-only
+
 ###################################################################
 #                              NOTE
 #  This is NOT meant to be used standalone. It relies on an
 #  environment variable,"TMA", which is set by build.sh.
 ###################################################################
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # USER-CHANGEABLE OPTIONS
 export CMAKE="cmake"
