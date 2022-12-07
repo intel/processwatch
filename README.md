@@ -1,6 +1,9 @@
 Process Watch
 =============
 
+This is an example of Process Watch running on an Intel® NUC running the [LULESH](https://github.com/LLNL/LULESH) workload. Note the presence of AVX, AVX2, and VFMA instructions.
+![image](https://user-images.githubusercontent.com/87155110/203642236-756ae342-b860-4cb4-8f8d-7de494218eeb.png)
+
 Overview
 --------
 
@@ -43,7 +46,6 @@ on your system:
 1. CMake
 2. Clang
 3. LLVM (e.g. `llvm-strip`)
-4. `bpftool`
 5. NCURSES
 6. POSIX Threads
 7. `libelf`
@@ -51,8 +53,15 @@ on your system:
 You can install these on Ubuntu 20.04, 21.10, or 22.04 by issuing the following:
 ```
 sudo apt-get update
-sudo apt-get install libelf-dev cmake clang llvm linux-tools-generic
+sudo apt-get install libelf-dev cmake clang llvm llvm-dev
 ```
+
+Ubuntu 18.04 requires a bit more work; the default LLVM version is too old:
+```
+sudo apt-get update
+sudo apt-get install libelf-dev cmake clang-10 llvm-10 llvm-10-dev
+```
+Then edit `build.sh` and append `-10` to the values of `CLANG`, `CLANGXX`, and `LLVMSTRIP`.
 
 On CentOS 8.4, CentOS 8 Stream, and CentOS 9 Stream:
 ```
