@@ -156,16 +156,16 @@ static int single_insn_event(int cpu, int pid) {
     .size = sizeof(struct perf_event_attr),
   };
   
-  /* Program INST_RETIRED.PREC_DIST (or equivalent) depending on PMU version */
+  /* Program INST_RETIRED.ANY (or equivalent) depending on PMU version */
   if(strncmp(bpf_info->pmu_name, "skylake", 7) == 0) {
     attr.type = PERF_TYPE_RAW;
-    attr.config = 0x01c0;
+    attr.config = 0x00c0;
   } else if(strncmp(bpf_info->pmu_name, "icelake", 7) == 0) {
     attr.type = PERF_TYPE_RAW;
-    attr.config = 0x0100;
+    attr.config = 0x00c0;
   } else if(strncmp(bpf_info->pmu_name, "sapphire_rapids", 7) == 0) {
     attr.type = PERF_TYPE_RAW;
-    attr.config = 0x0100;
+    attr.config = 0x00c0;
   } else {
     attr.type = PERF_TYPE_SOFTWARE;
     attr.config = PERF_COUNT_SW_CPU_CLOCK;
