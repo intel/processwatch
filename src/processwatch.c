@@ -80,7 +80,7 @@ int read_opts(int argc, char **argv) {
 
   /* Column filters */
   pw_opts.col_strs = NULL;
-  pw_opts.col_strs_len = 3;
+  pw_opts.col_strs_len = 0;
   pw_opts.cols = NULL;
   pw_opts.cols_len = 0;
   
@@ -137,10 +137,6 @@ int read_opts(int argc, char **argv) {
         pw_opts.sample_period = strtoul(optarg, NULL, 10);
         break;
       case 'f':
-        if(pw_opts.col_strs == default_col_strs) {
-          pw_opts.col_strs = NULL;
-          pw_opts.col_strs_len = 0;
-        }
         pw_opts.col_strs_len++;
         pw_opts.col_strs = (char **) realloc(pw_opts.col_strs, sizeof(char *) *
                                              pw_opts.col_strs_len);
@@ -157,6 +153,7 @@ int read_opts(int argc, char **argv) {
   }
   
   if(pw_opts.col_strs == NULL) {
+    /* If the user didn't specify -f even once */
     if(pw_opts.show_mnemonics) {
       pw_opts.col_strs = default_mnem_col_strs;
       pw_opts.col_strs_len = 1;
@@ -499,10 +496,6 @@ int main(int argc, char **argv) {
     deinit_csv(pw_opts.csv_file);
   }
   
-#ifndef TMA
-  print_results_summary();
-#endif
-
 cleanup:
   deinit_bpf_info();
   deinit_results();

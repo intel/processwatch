@@ -27,11 +27,9 @@ double get_interval_proc_metric(int proc_index, int index) {
 
 #else
 
-
 int get_proc_num_samples(int proc_index) {
   return results->proc_num_samples[proc_index];
 }
-
 
 const char *get_name(int index) {
   if(pw_opts.show_mnemonics) {
@@ -287,104 +285,6 @@ int *sort_pids(int *num_pids) {
   return pids;
 }
 
-#ifdef TMA
-
-#else
-int *sort_interval_cats(int *num_cats) {
-  int i, n, cat, *cats;
-  
-  cats = malloc(sizeof(ZydisInstructionCategory) * (pw_opts.cols_len));
-  if(!cats) {
-    fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-    exit(1);
-  }
-  for(i = 0; i < pw_opts.cols_len; i++) {
-    cat = pw_opts.cols[i];
-    cats[i] = cat;
-  }
-  
-  quicksort(cats, QSORT_INTERVAL_CAT_PERCENT, 0, cat - 1);
-  
-  return cats;
-}
-
-int *sort_interval_insns(int *num_insns) {
-  int *insns, insn, i;
-  
-  /*  Count the number of instructions that actually have values */
-  *num_insns = 0;
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(results->interval->insn_count[i] == 0) {
-      continue;
-    }
-/*     filter_name(i); */
-    (*num_insns)++;
-  }
-  
-  if(*num_insns == 0) {
-    return NULL;
-  }
-  
-  /* Allocate the return array */
-  insns = malloc(sizeof(int) * (*num_insns));
-  if(!insns) {
-    fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-    exit(1);
-  }
-  
-  /* Fill in the indices into the return array */
-  insn = 0;
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(results->interval->insn_count[i] == 0) {
-      continue;
-    }
-/*     filter_name(i); */
-    insns[insn++] = i;
-  }
-  
-  /* Sort the indices by the chosen metric */
-  quicksort(insns, QSORT_INTERVAL_INSN_PERCENT, 0, insn - 1);
-  
-  return insns;
-}
-
-int *sort_cats(int *num_cats) {
-  int *cats, cat, i;
-  
-  /*  Count the number of categories that actually have values */
-  *num_cats = 0;
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(results->cat_percent[i] == 0) {
-      continue;
-    }
-/*     filter_name(i); */
-    (*num_cats)++;
-  }
-  
-  if(*num_cats == 0) {
-    return NULL;
-  }
-  
-  /* Make an array of all non-zero categories */
-  cats = malloc(sizeof(int) * (*num_cats));
-  if(!cats) {
-    fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-    exit(1);
-  }
-  cat = 0;
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(results->cat_percent[i] == 0) {
-      continue;
-    }
-/*     filter_name(i); */
-    cats[cat++] = i;
-  }
-  
-  quicksort(cats, QSORT_CAT_PERCENT, 0, cat - 1);
-  
-  return cats;
-}
-
 int *sort_insns(int *num_insns) {
   int *insns, insn, i;
   
@@ -394,7 +294,6 @@ int *sort_insns(int *num_insns) {
     if(results->insn_count[i] == 0) {
       continue;
     }
-/*     filter_name(i); */
     (*num_insns)++;
   }
   
@@ -412,7 +311,6 @@ int *sort_insns(int *num_insns) {
     if(results->insn_count[i] == 0) {
       continue;
     }
-/*     filter_name(i); */
     insns[insn++] = i;
   }
   
@@ -482,90 +380,3 @@ void calculate_percentages() {
     }
   }
 }
-
-#endif /* TMA */
-
-#ifndef TMA
-/*
-Summary
-=======
-
-Instructions sampled: X
-
-Top 10 Categories:
-  ADD    40.84%
-  BINARY 20.23%
-  ...
-*/
-void print_results_summary() {
-  int i, n, index,
-      *pids, num_pids,
-      *sorted_indices, num_indices,
-      max_col_len, max_first_col_len,
-      len;
-  process_t *process;
-  
-  
-  calculate_percentages();
-  if(pw_opts.show_mnemonics) {
-    sorted_indices = sort_insns(&num_indices);
-  } else {
-    sorted_indices = sort_cats(&num_indices);
-  }
-  if(!sorted_indices) {
-    return;
-  }
-  pids = sort_pids(&num_pids);
-  if(!pids) {
-    free(sorted_indices);
-    return;
-  }
-  
-  printf("SUMMARY\n");
-  printf("=======\n");
-  printf("\n");
-  printf("Instructions sampled: %d\n", results->num_samples);
-  printf("\n");
-  printf("Top 10 ");
-  if(pw_opts.show_mnemonics) {
-    printf("Mnemonics:\n");
-  } else {
-    printf("Categories:\n");
-  }
-  if(num_indices > 10) num_indices = 10;
-  if(num_pids > 10) num_pids = 10;
-  
-  /* Calculate the maximum column lengths */
-  max_first_col_len = TASK_COMM_LEN + 1;
-  max_col_len = 0;
-  for(i = 0; i < num_indices; i++) {
-    len = strlen(get_name(sorted_indices[i]));
-    if(len > max_col_len) max_col_len = len;
-  }
-  max_col_len += 2;
-  if(max_col_len < 8) max_col_len = 8;
-  
-  printf("%-*s", max_first_col_len, " ");
-  for(i = 0; i < num_indices; i++) {
-    printf("%*s", max_col_len, get_name(sorted_indices[i]));
-  }
-  printf("\n");
-  
-  for(i = 0; i < num_pids; i++) {
-    index = pids[i];
-    process = get_process_info_with_index(index);
-    if(!process) continue;
-    if(!get_proc_num_samples(index)) break;
-    
-    printf("%-*s", max_first_col_len, process->name);
-    for(n = 0; n < num_indices; n++) {
-      printf("%*.*lf%%", max_col_len - 1, 2, get_proc_percent(index, sorted_indices[n]));
-    }
-    printf("\n");
-  }
-  
-  free(sorted_indices);
-  free(pids);
-  
-}
-#endif
