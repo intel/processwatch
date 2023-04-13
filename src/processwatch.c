@@ -32,6 +32,7 @@ static struct option long_options[] = {
   {"sample-period", required_argument, 0, 's'},
   {"filter",        required_argument, 0, 'f'},
   {"time",          required_argument, 0, 't'},
+  {"list",          no_argument,       0, 'l'},
   {"help",          no_argument,       0, 'h'},
   {0,               0,                 0, 0}
 };
@@ -83,12 +84,13 @@ int read_opts(int argc, char **argv) {
   pw_opts.col_strs_len = 0;
   pw_opts.cols = NULL;
   pw_opts.cols_len = 0;
+  pw_opts.list = 0;
   
   pw_opts.runtime = -1;
 
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:c:p:ms:f:t:h",
+    c = getopt_long(argc, argv, "i:c:p:ms:f:t:hl",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -110,6 +112,7 @@ int read_opts(int argc, char **argv) {
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
         printf("  -t <time>   When used in CSV mode, limits execution time to <time> seconds.\n");
+        printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
         return -1;
         break;
       case 'i':
@@ -145,11 +148,29 @@ int read_opts(int argc, char **argv) {
       case 't':
         pw_opts.runtime = strtoul(optarg, NULL, 10);
         break;
+      case 'l':
+        pw_opts.list = 1;
+        break;
       case '?':
         return -1;
       default:
         return -1;
     }
+  }
+  
+  if(pw_opts.list) {
+    if(pw_opts.show_mnemonics) {
+      printf("Listing all available mnemonics:\n");
+      for(i = 0; i <= ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+        printf("%s\n", ZydisMnemonicGetString(i));
+      }
+    } else {
+      printf("Listing all available categories:\n");
+      for(i = 0; i <= ZYDIS_CATEGORY_MAX_VALUE; i++) {
+        printf("%s\n", ZydisCategoryGetString(i));
+      }
+    }
+    exit(0);
   }
   
   if(pw_opts.col_strs == NULL) {
