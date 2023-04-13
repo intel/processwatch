@@ -9,6 +9,9 @@
 #include <pthread.h>
 #include <time.h>
 #include <ctype.h>
+#ifndef TMA
+#include <Zydis/Zydis.h>
+#endif
 
 #include "processwatch.h"
 
@@ -34,19 +37,34 @@ static struct option long_options[] = {
 };
 
 struct pw_opts_t pw_opts;
+static char *default_col_strs[3] = {
+  "AVX",
+  "AVX2",
+  "AVX512"
+};
+static char *default_mnem_col_strs[1] = {
+  "vrcp14pd"
+};
 
 void free_opts() {
+  int i;
+  
   if(pw_opts.csv_filename) {
     free(pw_opts.csv_filename);
   }
-  if(pw_opts.filter_string) {
-    free(pw_opts.filter_string);
+  if((pw_opts.col_strs != default_col_strs) &&
+     (pw_opts.col_strs != default_mnem_col_strs)) {
+    for(i = 0; i < pw_opts.col_strs_len; i++) {
+      free(pw_opts.col_strs[i]);
+    }
+    free(pw_opts.col_strs);
   }
 }
 
 int read_opts(int argc, char **argv) {
-  int option_index, i;
-  char c;
+  int option_index, i, n, len, max_value;
+  char c, found;
+  const char *name;
 
   pw_opts.interval_time = 2000;
   pw_opts.csv_filename = NULL;
@@ -59,8 +77,13 @@ int read_opts(int argc, char **argv) {
 #else
   pw_opts.sample_period = 10000;
 #endif
-  pw_opts.filter_string = NULL;
-  pw_opts.filter_string_len = 0;
+
+  /* Column filters */
+  pw_opts.col_strs = NULL;
+  pw_opts.col_strs_len = 0;
+  pw_opts.cols = NULL;
+  pw_opts.cols_len = 0;
+  
   pw_opts.runtime = -1;
 
   while(1) {
@@ -85,7 +108,7 @@ int read_opts(int argc, char **argv) {
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
-        printf("  -f <insn>   Only shows the (case insensitive) mnemonic or category <insn>.\n");
+        printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
         printf("  -t <time>   When used in CSV mode, limits execution time to <time> seconds.\n");
         return -1;
         break;
@@ -114,15 +137,10 @@ int read_opts(int argc, char **argv) {
         pw_opts.sample_period = strtoul(optarg, NULL, 10);
         break;
       case 'f':
-        if(pw_opts.filter_string) {
-          free(pw_opts.filter_string);
-        }
-        pw_opts.filter_string = strdup(optarg);
-        if(!pw_opts.filter_string) {
-          fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-          exit(1);
-        }
-        pw_opts.filter_string_len = strlen(pw_opts.filter_string);
+        pw_opts.col_strs_len++;
+        pw_opts.col_strs = (char **) realloc(pw_opts.col_strs, sizeof(char *) *
+                                             pw_opts.col_strs_len);
+        pw_opts.col_strs[pw_opts.col_strs_len - 1] = strdup(optarg);
         break;
       case 't':
         pw_opts.runtime = strtoul(optarg, NULL, 10);
@@ -134,18 +152,60 @@ int read_opts(int argc, char **argv) {
     }
   }
   
-  /*
-     In order to speed up string comparison later, we want to:
-       1. Convert the filter string to lowercase if mnemonics are being used.
-       2. Convert the filter string to uppercase if categories are being used.
-  */
+  if(pw_opts.col_strs == NULL) {
+    /* If the user didn't specify -f even once */
+    if(pw_opts.show_mnemonics) {
+      pw_opts.col_strs = default_mnem_col_strs;
+      pw_opts.col_strs_len = 1;
+    } else {
+      pw_opts.col_strs = default_col_strs;
+      pw_opts.col_strs_len = 3;
+    }
+  }
+  
   if(pw_opts.show_mnemonics) {
-    for(i = 0; i < pw_opts.filter_string_len; i++) {
-      pw_opts.filter_string[i] = tolower(pw_opts.filter_string[i]);
+    if(pw_opts.col_strs != default_mnem_col_strs) {
+      for(i = 0; i < pw_opts.col_strs_len; i++) {
+        len = strlen(pw_opts.col_strs[i]);
+        for(n = 0; n < len; n++) {
+          pw_opts.col_strs[i][n] = tolower(pw_opts.col_strs[i][n]);
+        }
+      }
     }
   } else {
-    for(i = 0; i < pw_opts.filter_string_len; i++) {
-      pw_opts.filter_string[i] = toupper(pw_opts.filter_string[i]);
+    if(pw_opts.col_strs != default_col_strs) {
+      for(i = 0; i < pw_opts.col_strs_len; i++) {
+        len = strlen(pw_opts.col_strs[i]);
+        for(n = 0; n < len; n++) {
+          pw_opts.col_strs[i][n] = toupper(pw_opts.col_strs[i][n]);
+        }
+      }
+    }
+  }
+  /* Convert col_strs to an array of the ZydisInstructionCategory or ZydisMnemonic enum. */
+  if(pw_opts.show_mnemonics) {
+    max_value = ZYDIS_MNEMONIC_MAX_VALUE;
+  } else {
+    max_value = ZYDIS_CATEGORY_MAX_VALUE;
+  }
+  for(i = 0; i < pw_opts.col_strs_len; i++) {
+    for(n = 0; n <= max_value; n++) {
+      found = 0;
+      if(pw_opts.show_mnemonics) {
+        name = ZydisMnemonicGetString(n);
+      } else {
+        name = ZydisCategoryGetString(n);
+      }
+      if(strcmp(pw_opts.col_strs[i], name) == 0) {
+        found = 1;
+        pw_opts.cols_len++;
+        pw_opts.cols = realloc(pw_opts.cols, sizeof(int) * pw_opts.cols_len);
+        pw_opts.cols[pw_opts.cols_len - 1] = n;
+        break;
+      }
+    }
+    if(!found) {
+      fprintf(stderr, "WARNING: Didn't recognize instruction category: %s\n", pw_opts.col_strs[i]);
     }
   }
 
@@ -171,17 +231,14 @@ void ui_thread_interval(int s) {
     exit(1);
   }
   
-  if(!screen_paused) {
-    
 #ifdef TMA
-    update_tma_metrics();
+  update_tma_metrics();
 #else
-    calculate_interval_percentages();
+  calculate_interval_percentages();
 #endif
 
-    if(sorted_interval) {
-      free_sorted_interval();
-    }
+  if(sorted_interval) {
+    free_sorted_interval();
   }
   
   /* Display the results */
@@ -321,45 +378,22 @@ void *ui_thread_main(void *a) {
   init_interval_signal();
   
   /* Wait for the user to exit */
-  if(pw_opts.csv_file) {
-    /* If we're in CSV mode, wait on SIGTERM */
-    sigemptyset(&mask);
-    sigaddset(&mask, SIGTERM);
-    if(sigprocmask(SIG_BLOCK, &mask, NULL) == -1) {
-      fprintf(stderr, "Error blocking SIGTERM. Aborting.\n");
-      exit(1);
+  sigemptyset(&mask);
+  sigaddset(&mask, SIGTERM);
+  if(sigprocmask(SIG_BLOCK, &mask, NULL) == -1) {
+    fprintf(stderr, "Error blocking SIGTERM. Aborting.\n");
+    exit(1);
+  }
+  while(sigwait(&mask, &sig) == 0) {
+    if(sig == SIGTERM) {
+      break;
     }
-    while(sigwait(&mask, &sig) == 0) {
-      if(sig == SIGTERM) {
-        break;
-      }
-    }
-    /* Make sure we get at least one interval; if
-       not intervals have run yet, send the interval signal
-       manually */
-    if(results->interval_num == 0) {
-      pthread_kill(ui_thread_id, interval_signal);
-    }
-  } else {
-    while((ch = getch()) != 'q') {
-      switch(ch) {
-        case KEY_LEFT:
-          left_scroll_screen();
-          break;
-        case KEY_RIGHT:
-          right_scroll_screen();
-          break;
-        case 'r':
-          resume_screen();
-          break;
-        case KEY_UP:
-          up_scroll_screen();
-          break;
-        case KEY_DOWN:
-          down_scroll_screen();
-          break;
-      }
-    }
+  }
+  /* Make sure we get at least one interval; if
+      not intervals have run yet, send the interval signal
+      manually */
+  if(results->interval_num == 0) {
+    pthread_kill(ui_thread_id, interval_signal);
   }
   ui_thread_stop(SIGTERM);
   
@@ -423,8 +457,6 @@ int main(int argc, char **argv) {
   /* Initialize the UI */
   if(pw_opts.csv_file) {
     print_csv_header(pw_opts.csv_file);
-  } else {
-    init_screen();
   }
   
   /* Start the ui thread, which will collect results
@@ -462,14 +494,8 @@ int main(int argc, char **argv) {
   pthread_join(ui_thread_id, NULL);
   if(pw_opts.csv_file) {
     deinit_csv(pw_opts.csv_file);
-  } else {
-    deinit_screen();
   }
   
-#ifndef TMA
-  print_results_summary();
-#endif
-
 cleanup:
   deinit_bpf_info();
   deinit_results();

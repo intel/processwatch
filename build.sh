@@ -110,9 +110,6 @@ if [ "${TMA}" = false ]; then
   export PW_LDFLAGS="${PW_LDFLAGS} ${ZYDIS_STATIC_LIB}"
 fi
 
-# ncurses
-export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libncurses.a"
-
 # tinyexpr
 if [ "${TMA}" = true ]; then
   export PW_LDFLAGS="${PW_LDFLAGS} ${DIR}/src/tinyexpr.o -lm"

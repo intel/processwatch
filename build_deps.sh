@@ -24,7 +24,6 @@ fi
 DEPS_DIR="${DIR}/deps"
 BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
 ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
-NCURSES_SRC_DIR="${DEPS_DIR}/ncurses"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
 JEVENTS_SRC_DIR="${DEPS_DIR}/pmu-tools/jevents"
 
@@ -134,43 +133,6 @@ if [ "${TMA}" = false ]; then
   
   cd ${DIR}
 fi
-
-###################################################################
-#                            ncurses
-###################################################################
-# ncurses is an older library, and thus fairly stable. This
-# program does not rely on any particular version of it, but
-# various distributions sometimes include oddly-named versions of
-# the static library (e.g. on Arch, only `libncursesw_g.a` and
-# `libncurses++w_g.a` are available). That's why we're building
-# it here; for a distribution-agnostic build.
-echo "  Compiling ncurses..."
-
-mkdir -p "${PREFIX}"
-cd ${NCURSES_SRC_DIR}
-./configure --prefix=${PREFIX} \
-  --without-gpm \
-  2>&1 | tee ${BUILD_LOGS}/ncurses.log
-RETVAL=$?
-if [ ${RETVAL} -ne 0 ]; then
-  echo "Configuring ncurses failed. Please check ${BUILD_LOGS}/ncurses.log for more details."
-  exit 1
-fi
-make -j`nproc` \
-  2>&1 | tee -a ${BUILD_LOGS}/ncurses.log
-RETVAL=$?
-if [ ${RETVAL} -ne 0 ]; then
-  echo "Compiling ncurses failed. Please check ${BUILD_LOGS}/ncurses.log for more details."
-  exit 1
-fi
-make install \
-  2>&1 | tee -a ${BUILD_LOGS}/ncurses.log
-RETVAL=$?
-if [ ${RETVAL} -ne 0 ]; then
-  echo "Compiling ncurses failed. Please check ${BUILD_LOGS}/ncurses.log for more details."
-  exit 1
-fi
-cd ${DIR}
 
 ###################################################################
 #                            tinyexpr
