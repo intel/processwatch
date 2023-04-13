@@ -7,10 +7,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # Compile the appropriate BPF program
 if [ "${TMA}" = true ]; then
   ${DIR}/bpf/tma/build.sh
-  ${CLANG} ${PW_CFLAGS} -I${DIR}/bpf/tma -I${PREFIX}/include -I${PREFIX}/include/ncurses -c ${DIR}/processwatch.c -o ${DIR}/processwatch.o
+  ${CLANG} ${PW_CFLAGS} -I${DIR}/bpf/tma -I${PREFIX}/include -c ${DIR}/processwatch.c -o ${DIR}/processwatch.o
 else
   ${DIR}/bpf/insn/build.sh
-  ${CLANG} ${PW_CFLAGS} -I${DIR}/bpf/insn -I${PREFIX}/include -I${PREFIX}/include/ncurses -c ${DIR}/processwatch.c -o ${DIR}/processwatch.o
+  ${CLANG} ${PW_CFLAGS} -I${DIR}/bpf/insn -I${PREFIX}/include -c ${DIR}/processwatch.c -o ${DIR}/processwatch.o
 fi
 
 ###################################################################

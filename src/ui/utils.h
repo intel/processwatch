@@ -245,16 +245,6 @@ void quicksort(int *vals, int val_type, int low, int high) {
   quicksort(vals, val_type, partition_index + 1, high);
 }
 
-#define filter_name(i) \
-  if(pw_opts.filter_string) { \
-    if(strncmp(pw_opts.filter_string, \
-               get_name(i), \
-               strlen(get_name(i)) > pw_opts.filter_string_len ? pw_opts.filter_string_len : strlen(get_name(i))) \
-               != 0) { \
-        continue; \
-    } \
-  }
-
 int *sort_interval_pids(int *num_pids) {
   int *pids, i, num_procs;
   
@@ -301,35 +291,16 @@ int *sort_pids(int *num_pids) {
 
 #else
 int *sort_interval_cats(int *num_cats) {
-  int *cats, cat, i;
+  int i, n, cat, *cats;
   
-  /*  Count the number of categories that actually have values */
-  *num_cats = 0;
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(results->interval->cat_count[i] == 0) {
-      continue;
-    }
-    filter_name(i);
-    (*num_cats)++;
-  }
-  
-  if(*num_cats == 0) {
-    return NULL;
-  }
-  
-  /* Make an array of all non-zero categories */
-  cats = malloc(sizeof(int) * (*num_cats));
+  cats = malloc(sizeof(ZydisInstructionCategory) * (pw_opts.cols_len));
   if(!cats) {
     fprintf(stderr, "Failed to allocate memory! Aborting.\n");
     exit(1);
   }
-  cat = 0;
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(results->interval->cat_count[i] == 0) {
-      continue;
-    }
-    filter_name(i);
-    cats[cat++] = i;
+  for(i = 0; i < pw_opts.cols_len; i++) {
+    cat = pw_opts.cols[i];
+    cats[i] = cat;
   }
   
   quicksort(cats, QSORT_INTERVAL_CAT_PERCENT, 0, cat - 1);
@@ -346,7 +317,7 @@ int *sort_interval_insns(int *num_insns) {
     if(results->interval->insn_count[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     (*num_insns)++;
   }
   
@@ -367,7 +338,7 @@ int *sort_interval_insns(int *num_insns) {
     if(results->interval->insn_count[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     insns[insn++] = i;
   }
   
@@ -386,7 +357,7 @@ int *sort_cats(int *num_cats) {
     if(results->cat_percent[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     (*num_cats)++;
   }
   
@@ -405,7 +376,7 @@ int *sort_cats(int *num_cats) {
     if(results->cat_percent[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     cats[cat++] = i;
   }
   
@@ -423,7 +394,7 @@ int *sort_insns(int *num_insns) {
     if(results->insn_count[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     (*num_insns)++;
   }
   
@@ -441,7 +412,7 @@ int *sort_insns(int *num_insns) {
     if(results->insn_count[i] == 0) {
       continue;
     }
-    filter_name(i);
+/*     filter_name(i); */
     insns[insn++] = i;
   }
   

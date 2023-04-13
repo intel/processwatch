@@ -67,18 +67,11 @@ static void handle_sample(void *ctx, int cpu, void *data, unsigned int data_sz) 
 
 #else
 
-static int handle_sample(void *ctx, void *data, size_t data_sz) {
+static void handle_sample(void *ctx, void *data, size_t data_sz) {
   struct insn_info *insn_info;
-/*   int i; */
   
   insn_info = data;
   
-  /* Print out the instruction bytes for debugging */
-/*   for(i = 0; i < 7; i++) { */
-/*     printf("%02x ", (unsigned) insn_info->insn[i]); */
-/*   } */
-/*   printf("\n"); */
-
   if(ZYAN_SUCCESS(ZydisDecoderDecodeInstruction(&results->decoder,
                                                 ZYAN_NULL,
                                                 insn_info->insn, 15,
@@ -102,15 +95,6 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
       exit(1);
     }
   }
-/*   else { */
-/*     printf("FAILED: "); */
-/*     for(i = 0; i < 7; i++) { */
-/*       printf("%02x ", (unsigned) insn_info->insn[i]); */
-/*     } */
-/*     printf("\n"); */
-/*   } */
-  
-  return 0;
 }
 
 #endif

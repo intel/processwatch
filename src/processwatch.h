@@ -28,8 +28,10 @@ struct pw_opts_t {
   unsigned char show_mnemonics : 1;
   unsigned int sample_period;
   
-  char *filter_string;
-  int filter_string_len;
+  char **col_strs;
+  int col_strs_len;
+  int *cols;
+  int cols_len;
 };
 
 /**

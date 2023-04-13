@@ -1,9 +1,6 @@
 [submodule "deps/bpftool"]
 	path = deps/bpftool
 	url = https://github.com/libbpf/bpftool.git
-[submodule "deps/ncurses"]
-	path = deps/ncurses
-	url = https://github.com/mirror/ncurses.git
 [submodule "deps/pmu-tools"]
 	path = deps/pmu-tools
 	url = https://github.com/andikleen/pmu-tools.git
