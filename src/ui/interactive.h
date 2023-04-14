@@ -78,6 +78,7 @@ void update_screen(struct sorted_interval **sortint_arg) {
     printf(" ");
     printf("%-*.*s", col_width, col_width, get_name(pw_opts.cols[i]));
   }
+  printf(" %-*.*s", col_width, col_width, "%TOTAL");
   printf("\n");
   
   printf("%-*s ", pid_col_width, "ALL");
@@ -94,6 +95,7 @@ void update_screen(struct sorted_interval **sortint_arg) {
             get_interval_percent(pw_opts.cols[i]));
 #endif
   }
+  printf("%-*.*lf", col_width, 2, 100.0);
   printf("\n");
 
   /* Print one PID per line */
@@ -112,6 +114,7 @@ void update_screen(struct sorted_interval **sortint_arg) {
               get_interval_proc_percent(sortint->pid_indices[i], pw_opts.cols[n]));
 #endif
     }
+    printf(" %-*.*lf", col_width, 2, get_interval_proc_percent_samples(sortint->pid_indices[i]));
     printf("\n");
   }
 }
