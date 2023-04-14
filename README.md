@@ -8,7 +8,7 @@ Overview
 --------
 
 Process Watch displays per-process instruction mix in real-time, organizing these
-instructions into categories. It offers a simple, `curses`-style interface as well
+instructions into categories. It offers a simple, table-based interface as well
 as a CSV output.
 
 Runtime Requirements
@@ -73,7 +73,7 @@ On Amazon Linux 2, you can do:
 ```
 sudo yum update
 sudo yum install bpftool zlib-devel zlib-static \
-  elfutils-libelf-devel-static clang cmake3 ncurses-static llvm \
+  elfutils-libelf-devel-static clang cmake3 llvm \
   glibc-static
 ```
 
@@ -99,26 +99,29 @@ Interactive Mode
 ----------------
 
 This is the default mode, so no command-line arguments are necessary to enable it.
-Use `q` to quit and use the right and left arrow keys to scroll.
+Kill it with CTRL-C or send it SIGTERM. You can also do `-n <num>` to have it stop
+after a number of intervals.
 
 CSV Mode
 ----------
 
-To enable this mode, pass `--csv=[filename]` on the command-line. Output will go to
-`[filename]`. Send `SIGTERM` to kill it.
+To enable this mode, pass `--csv` or `-c` on the command-line. Output will go to
+`stdout`. Send `SIGTERM` to kill it.
 
 Usage
 -----
 
-| Long Form                  | Short Form | Description                                                          |
-|----------------------------|------------|----------------------------------------------------------------------|
-| `--interval=[sec]`         | `-i`       | Modifies the interval length. Default is 2.                          |
-| `--csv=[filename]`         | `-c`       | Enables CSV output to `[filename]`. Kill with SIGTERM.               |
-| `--pid=[pid]`              | `-p`       | Profiles a specific PID rather than all processes.                   |
-| `--mnemonics`              | `-m`       | Displays individual instruction mnemonics instead of categories.     |
-| `--sample_period=[val]`    | `-s`       | Sets the `perf` rate at which to sample instructions.                |
-| `--filter=[val]`           | `-f`       | Filters instruction mnemonics or categories. Ignores case.           |
-| `--time=[val]`             | `-t`       | In CSV mode, limits runtime to a number of seconds.                  |
+| Long Form                  | Short Form | Description                                                                           |
+|----------------------------|------------|---------------------------------------------------------------------------------------|
+| `--interval=[sec]`         | `-i`       | Modifies the interval length. Default is 2.                                           |
+| `--num-intervals`          | `-n`       | Limits runtime to <num> intervals.                                                    |
+| `--csv`                    | `-c`       | Enables CSV output to `stdout`. Kill with SIGTERM.                                    |
+| `--pid=[pid]`              | `-p`       | Profiles a specific PID rather than all processes.                                    |
+| `--mnemonics`              | `-m`       | Displays individual instruction mnemonics instead of categories.                      |
+| `--sample_period=[val]`    | `-s`       | Sets the `perf` rate at which to sample instructions.                                 |
+| `--filter=[val]`           | `-f`       | Filters instruction mnemonics or categories. Ignores case. Can pass multiple times.   |
+| `--list`                   | `-l`       | Prints available instruction categories (or mnemonics if `-m` is specified) and exits.|
+| `--help`                   | `-h`       | Help!                                                                                 |
 
 Known Build Issues
 ------------------
