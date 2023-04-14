@@ -6,20 +6,6 @@
 #include <math.h>
 #include <inttypes.h>
 
-static FILE *init_csv(char *csv_filename) {
-  FILE *file;
-  
-  if(!csv_filename) return NULL;
-  
-  file = fopen(csv_filename, "w");
-  if(!file) {
-    fprintf(stderr, "Failed to open CSV for writing: '%s'. Aborting.\n", csv_filename);
-    return NULL;
-  }
-  
-  return file;
-}
-
 static void print_csv_header(FILE *csv_file) {
   int i;
   
@@ -78,9 +64,4 @@ static void print_csv_interval(FILE *csv_file) {
   if(counter) {
     fprintf(csv_file, "\n");
   }
-}
-
-static void deinit_csv(FILE *csv_file) {
-  if(!csv_file) return;
-  fclose(csv_file);
 }

@@ -26,7 +26,7 @@ pthread_rwlock_t results_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 static struct option long_options[] = {
   {"interval",      required_argument, 0, 'i'},
-  {"csv",           required_argument, 0, 'c'},
+  {"csv",           no_argument,       0, 'c'},
   {"pid",           required_argument, 0, 'p'},
   {"mnemonics",     no_argument,       0, 'm'},
   {"sample-period", required_argument, 0, 's'},
@@ -50,9 +50,6 @@ static char *default_mnem_col_strs[1] = {
 void free_opts() {
   int i;
   
-  if(pw_opts.csv_filename) {
-    free(pw_opts.csv_filename);
-  }
   if((pw_opts.col_strs != default_col_strs) &&
      (pw_opts.col_strs != default_mnem_col_strs)) {
     for(i = 0; i < pw_opts.col_strs_len; i++) {
@@ -68,10 +65,9 @@ int read_opts(int argc, char **argv) {
   const char *name;
 
   pw_opts.interval_time = 2000;
-  pw_opts.csv_filename = NULL;
-  pw_opts.csv_file = NULL;
   pw_opts.pid = -1;
   pw_opts.show_mnemonics = 0;
+  pw_opts.csv = 0;
   
 #ifdef TMA
   pw_opts.sample_period = 10000;
@@ -90,7 +86,7 @@ int read_opts(int argc, char **argv) {
 
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:c:p:ms:f:t:hl",
+    c = getopt_long(argc, argv, "i:cp:ms:f:t:hl",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -106,7 +102,7 @@ int read_opts(int argc, char **argv) {
         printf("options:\n");
         printf("  -h          Displays this help message.\n");
         printf("  -i <len>    Prints results every <len> milliseconds.\n");
-        printf("  -c <csv>    Prints all results in CSV format to the file <csv>.\n");
+        printf("  -c          Prints all results in CSV format to stdout.\n");
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
@@ -120,15 +116,7 @@ int read_opts(int argc, char **argv) {
         pw_opts.interval_time = strtoul(optarg, NULL, 10);
         break;
       case 'c':
-        /* The filename of the CSV you want to print */
-        if(pw_opts.csv_filename) {
-          free(pw_opts.csv_filename);
-        }
-        pw_opts.csv_filename = strdup(optarg);
-        if(!pw_opts.csv_filename) {
-          fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-          exit(1);
-        }
+        pw_opts.csv = 1;
         break;
       case 'p':
         pw_opts.pid = (int) strtoul(optarg, NULL, 10);
@@ -263,8 +251,8 @@ void ui_thread_interval(int s) {
   }
   
   /* Display the results */
-  if(pw_opts.csv_file) {
-    print_csv_interval(pw_opts.csv_file);
+  if(pw_opts.csv) {
+    print_csv_interval(stdout);
   } else {
     update_screen(&sorted_interval);
   }
@@ -280,7 +268,7 @@ void ui_thread_interval(int s) {
 
 void ui_thread_stop(int s) {
   timer_delete(interval_timer);
-  if(pw_opts.csv_file && (pw_opts.runtime > 0)) {
+  if(pw_opts.runtime > 0) {
     timer_delete(runtime_timer);
   }
   stopping = 1;
@@ -339,7 +327,7 @@ int init_interval_signal() {
   
   /* The user specified to run for a certain amount of time.
      Only do this if we're in CSV mode. */
-  if(pw_opts.csv_file && (pw_opts.runtime > 0)) {
+  if(pw_opts.runtime > 0) {
     /* Block the runtime signal */
     sigemptyset(&runtime_mask);
     sigaddset(&runtime_mask, SIGTERM);
@@ -459,8 +447,6 @@ int main(int argc, char **argv) {
     return 1;
   }
   
-  pw_opts.csv_file = init_csv(pw_opts.csv_filename);
-  
   /* Open perf events and start gathering */
   bpf_info = calloc(1, sizeof(bpf_info_t));
   if(!bpf_info) {
@@ -476,8 +462,8 @@ int main(int argc, char **argv) {
   init_results();
   
   /* Initialize the UI */
-  if(pw_opts.csv_file) {
-    print_csv_header(pw_opts.csv_file);
+  if(pw_opts.csv) {
+    print_csv_header(stdout);
   }
   
   /* Start the ui thread, which will collect results
@@ -513,9 +499,6 @@ int main(int argc, char **argv) {
   /* Send the stop signal to the profiling thread,
      then wait for it to close successfully. */
   pthread_join(ui_thread_id, NULL);
-  if(pw_opts.csv_file) {
-    deinit_csv(pw_opts.csv_file);
-  }
   
 cleanup:
   deinit_bpf_info();

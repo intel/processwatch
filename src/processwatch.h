@@ -21,8 +21,7 @@
  Stores preprocessed command-line options.
 */
 struct pw_opts_t {
-  char *csv_filename;
-  FILE *csv_file;
+  char csv;
   unsigned int interval_time, runtime;
   int pid;
   unsigned char show_mnemonics : 1;
