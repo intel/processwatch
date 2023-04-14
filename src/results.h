@@ -34,40 +34,12 @@ static void update_pid(uint32_t pid, int cat, int insn, char *name) {
   results->proc_num_samples[index]++;
 }
 
+/* Only the function signature differs between the perf_buffer and ringbuffer versions */
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
-
 static void handle_sample(void *ctx, int cpu, void *data, unsigned int data_sz) {
-  struct insn_info *insn_info;
-  
-  insn_info = data;
-  if(ZYAN_SUCCESS(ZydisDecoderDecodeInstruction(&results->decoder,
-                                                ZYAN_NULL,
-                                                insn_info->insn, 15,
-                                                &results->decoded_insn))) {
-    if(pthread_rwlock_wrlock(&results_lock) != 0) {
-      fprintf(stderr, "Failed to grab write lock! Aborting.\n");
-      exit(1);
-    }
-    results->interval->cat_count[results->decoded_insn.meta.category]++;
-    results->interval->insn_count[results->decoded_insn.mnemonic]++;
-    results->cat_count[results->decoded_insn.meta.category]++;
-    results->insn_count[results->decoded_insn.mnemonic]++;
-    update_pid(insn_info->pid,
-               results->decoded_insn.meta.category,
-               results->decoded_insn.mnemonic,
-               insn_info->name);
-    results->interval->num_samples++;
-    results->num_samples++;
-    if(pthread_rwlock_unlock(&results_lock) != 0) {
-      fprintf(stderr, "Failed to unlock the lock! Aborting.\n");
-      exit(1);
-    }
-  }
-}
-
 #else
-
-static void handle_sample(void *ctx, void *data, size_t data_sz) {
+static int handle_sample(void *ctx, void *data, size_t data_sz) {
+#endif
   struct insn_info *insn_info;
   
   insn_info = data;
@@ -95,9 +67,11 @@ static void handle_sample(void *ctx, void *data, size_t data_sz) {
       exit(1);
     }
   }
+#ifndef INSNPROF_LEGACY_PERF_BUFFER
+  return 0;
+#endif
 }
 
-#endif
 #endif /* TMA */
 
 static void init_results() {

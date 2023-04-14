@@ -334,7 +334,7 @@ void calculate_interval_percentages() {
   int i, n;
   
   for(i = 0; i < results->interval->proc_arr_size; i++) {
-    if(!(results->interval->proc_num_samples[n])) continue;
+    if(!(results->interval->num_samples)) continue;
     results->interval->proc_percent[i] = ((double) results->interval->proc_num_samples[i]) / results->interval->num_samples * 100;
   }
   
