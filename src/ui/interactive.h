@@ -95,7 +95,7 @@ void update_screen(struct sorted_interval **sortint_arg) {
             get_interval_percent(pw_opts.cols[i]));
 #endif
   }
-  printf("%-*.*lf", col_width, 2, 100.0);
+  printf(" %-*.*lf", col_width, 2, 100.0);
   printf("\n");
 
   /* Print one PID per line */
