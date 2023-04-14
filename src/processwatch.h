@@ -32,6 +32,8 @@ struct pw_opts_t {
   int col_strs_len;
   int *cols;
   int cols_len;
+  
+  char list;
 };
 
 /**
