@@ -8,14 +8,20 @@
 
 void get_pmu_string(char *pmu_name) {
   FILE *f;
+  size_t retval;
   
   f = fopen("/sys/devices/cpu/caps/pmu_name", "r");
   if(!f) {
-    fprintf(stderr, "WARNING: Unable to properly detect PMU name. Using software events.\n");
+    fprintf(stderr, "WARNING: Unable to open '/sys/devices/cpu/caps/pmu_name'. Using software events.\n");
     strcpy(pmu_name, "invalid");
     return;
   }
-  fread(pmu_name, sizeof(char), 32, f);
+  retval = fread(pmu_name, sizeof(char), 31, f);
+  if(retval == 0) {
+    fprintf(stderr, "WARNING: Unable to read '/sys/devices/cpu/caps/pmu_name'. Using software events.\n");
+    strcpy(pmu_name, "invalid");
+    return;
+  }
   fclose(f);
 }
 

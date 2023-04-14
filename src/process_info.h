@@ -211,33 +211,6 @@ static process_t *get_process_info(uint32_t pid, uint32_t hash) {
   return NULL;
 }
 
-#ifndef TMA
-/**
-  get_process_info_with_index
-  **
-  If you don't have the PID, name of the process, or the hash, you can also
-  get the process_t with the index-- this is costly, though.
-**/
-static process_t *get_process_info_with_index(int index) {
-  int i;
-  process_t *process, **proc_arr;
-  
-  for(i = 0; i <= results->process_info.max_pid; i++) {
-    proc_arr = results->process_info.arr[i];
-    if(!proc_arr) continue;
-    while(*proc_arr) {
-      process = *proc_arr;
-      if(process->index == index) {
-        return process;
-      }
-      proc_arr++;
-    }
-  }
-  
-  return NULL;
-}
-#endif
-
 /**
   update_one_process_info
   **

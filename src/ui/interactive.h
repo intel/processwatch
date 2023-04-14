@@ -29,8 +29,7 @@ struct sorted_interval {
 static struct sorted_interval *sorted_interval = NULL;
 
 void update_screen(struct sorted_interval **sortint_arg) {
-  int i, n,
-      cur_x, cur_y, index;
+  int i, n, index;
   process_t *process;
   
   struct sorted_interval *sortint = *sortint_arg;

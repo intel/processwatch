@@ -346,7 +346,7 @@ int init_interval_signal() {
     rate.
 */
 void *ui_thread_main(void *a) {
-  int ch, sig;
+  int sig;
   sigset_t mask;
   
   init_interval_signal();
