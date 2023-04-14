@@ -184,6 +184,7 @@ static void deinit_results() {
 #else
   free(results->interval->pids);
   free(results->interval->proc_num_samples);
+  free(results->interval->proc_percent);
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
     free(results->interval->proc_cat_count[i]);
     free(results->interval->proc_cat_percent[i]);

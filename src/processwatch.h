@@ -21,9 +21,8 @@
  Stores preprocessed command-line options.
 */
 struct pw_opts_t {
-  char *csv_filename;
-  FILE *csv_file;
-  unsigned int interval_time, runtime;
+  char csv;
+  unsigned int interval_time, num_intervals;
   int pid;
   unsigned char show_mnemonics : 1;
   unsigned int sample_period;
@@ -134,6 +133,7 @@ typedef struct {
   uint64_t  *proc_insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
   double    *proc_cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
   double    *proc_insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  double    *proc_percent;
   
 #endif
 

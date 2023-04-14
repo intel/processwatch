@@ -26,12 +26,12 @@ pthread_rwlock_t results_lock = PTHREAD_RWLOCK_INITIALIZER;
 
 static struct option long_options[] = {
   {"interval",      required_argument, 0, 'i'},
-  {"csv",           required_argument, 0, 'c'},
+  {"num-intervals", required_argument, 0, 'n'},
+  {"csv",           no_argument,       0, 'c'},
   {"pid",           required_argument, 0, 'p'},
   {"mnemonics",     no_argument,       0, 'm'},
   {"sample-period", required_argument, 0, 's'},
   {"filter",        required_argument, 0, 'f'},
-  {"time",          required_argument, 0, 't'},
   {"list",          no_argument,       0, 'l'},
   {"help",          no_argument,       0, 'h'},
   {0,               0,                 0, 0}
@@ -50,9 +50,6 @@ static char *default_mnem_col_strs[1] = {
 void free_opts() {
   int i;
   
-  if(pw_opts.csv_filename) {
-    free(pw_opts.csv_filename);
-  }
   if((pw_opts.col_strs != default_col_strs) &&
      (pw_opts.col_strs != default_mnem_col_strs)) {
     for(i = 0; i < pw_opts.col_strs_len; i++) {
@@ -67,11 +64,11 @@ int read_opts(int argc, char **argv) {
   char c, found;
   const char *name;
 
-  pw_opts.interval_time = 2000;
-  pw_opts.csv_filename = NULL;
-  pw_opts.csv_file = NULL;
+  pw_opts.interval_time = 2;
+  pw_opts.num_intervals = 0;
   pw_opts.pid = -1;
   pw_opts.show_mnemonics = 0;
+  pw_opts.csv = 0;
   
 #ifdef TMA
   pw_opts.sample_period = 10000;
@@ -86,11 +83,9 @@ int read_opts(int argc, char **argv) {
   pw_opts.cols_len = 0;
   pw_opts.list = 0;
   
-  pw_opts.runtime = -1;
-
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:c:p:ms:f:t:hl",
+    c = getopt_long(argc, argv, "i:cp:ms:f:hln:",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -105,30 +100,26 @@ int read_opts(int argc, char **argv) {
         printf("\n");
         printf("options:\n");
         printf("  -h          Displays this help message.\n");
-        printf("  -i <len>    Prints results every <len> milliseconds.\n");
-        printf("  -c <csv>    Prints all results in CSV format to the file <csv>.\n");
+        printf("  -i <int>    Prints results every <int> seconds.\n");
+        printf("  -n <num>    Prints results for <num> intervals.\n");
+        printf("  -c          Prints all results in CSV format to stdout.\n");
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
-        printf("  -t <time>   When used in CSV mode, limits execution time to <time> seconds.\n");
         printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
         return -1;
         break;
       case 'i':
-        /* Length in milliseconds of an interval */
+        /* Length in seconds of an interval */
         pw_opts.interval_time = strtoul(optarg, NULL, 10);
         break;
+      case 'n':
+        /* Number of intervals */
+        pw_opts.num_intervals = strtoul(optarg, NULL, 10);
+        break;
       case 'c':
-        /* The filename of the CSV you want to print */
-        if(pw_opts.csv_filename) {
-          free(pw_opts.csv_filename);
-        }
-        pw_opts.csv_filename = strdup(optarg);
-        if(!pw_opts.csv_filename) {
-          fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-          exit(1);
-        }
+        pw_opts.csv = 1;
         break;
       case 'p':
         pw_opts.pid = (int) strtoul(optarg, NULL, 10);
@@ -144,9 +135,6 @@ int read_opts(int argc, char **argv) {
         pw_opts.col_strs = (char **) realloc(pw_opts.col_strs, sizeof(char *) *
                                              pw_opts.col_strs_len);
         pw_opts.col_strs[pw_opts.col_strs_len - 1] = strdup(optarg);
-        break;
-      case 't':
-        pw_opts.runtime = strtoul(optarg, NULL, 10);
         break;
       case 'l':
         pw_opts.list = 1;
@@ -241,10 +229,15 @@ pthread_t ui_thread_id;
 
 int interval_signal;
 static int stopping = 0;
-timer_t interval_timer, runtime_timer;
+timer_t interval_timer;
 double interval_target_time;
 struct timespec interval_start,
                 interval_end;
+                
+void ui_thread_stop(int s) {
+  timer_delete(interval_timer);
+  stopping = 1;
+}
                 
 void ui_thread_interval(int s) {
   if(pthread_rwlock_wrlock(&results_lock) != 0) {
@@ -263,8 +256,8 @@ void ui_thread_interval(int s) {
   }
   
   /* Display the results */
-  if(pw_opts.csv_file) {
-    print_csv_interval(pw_opts.csv_file);
+  if(pw_opts.csv) {
+    print_csv_interval(stdout);
   } else {
     update_screen(&sorted_interval);
   }
@@ -276,24 +269,21 @@ void ui_thread_interval(int s) {
     fprintf(stderr, "Failed to release the lock! Aborting.\n");
     exit(1);
   }
-}
-
-void ui_thread_stop(int s) {
-  timer_delete(interval_timer);
-  if(pw_opts.csv_file && (pw_opts.runtime > 0)) {
-    timer_delete(runtime_timer);
+  
+  /* If the user specified a number of intervals to run */
+  if(results->interval_num == pw_opts.num_intervals) {
+    ui_thread_stop(SIGTERM);
   }
-  stopping = 1;
 }
 
 /**
   init_interval_signal: Sets up the signal handler to trigger an interval.
 */
 int init_interval_signal() {
-  struct sigevent sev, runtime_sev;
-  struct itimerspec its, runtime_its;
+  struct sigevent sev;
+  struct itimerspec its;
   struct sigaction sa;
-  sigset_t interval_mask, runtime_mask;
+  sigset_t interval_mask;
   pid_t tid;
   
   interval_signal = SIGRTMIN;
@@ -328,8 +318,8 @@ int init_interval_signal() {
   }
 
   /* Set the interval timer */
-  its.it_value.tv_sec     = pw_opts.interval_time / 1000;
-  its.it_value.tv_nsec    = (pw_opts.interval_time % 1000) * 1000000;
+  its.it_value.tv_sec     = pw_opts.interval_time;
+  its.it_value.tv_nsec    = 0;
   its.it_interval.tv_sec  = its.it_value.tv_sec;
   its.it_interval.tv_nsec = its.it_value.tv_nsec;
   if(timer_settime(interval_timer, 0, &its, NULL) == -1) {
@@ -337,43 +327,6 @@ int init_interval_signal() {
     exit(1);
   }
   
-  /* The user specified to run for a certain amount of time.
-     Only do this if we're in CSV mode. */
-  if(pw_opts.csv_file && (pw_opts.runtime > 0)) {
-    /* Block the runtime signal */
-    sigemptyset(&runtime_mask);
-    sigaddset(&runtime_mask, SIGTERM);
-    if(sigprocmask(SIG_SETMASK, &runtime_mask, NULL) == -1) {
-      fprintf(stderr, "Error blocking signal. Aborting.\n");
-      exit(1);
-    }
-    
-    /* Create the runtime timer */
-    runtime_sev.sigev_notify = SIGEV_THREAD_ID;
-    runtime_sev.sigev_signo = SIGTERM;
-    runtime_sev.sigev_value.sival_ptr = &runtime_timer;
-    runtime_sev._sigev_un._tid = tid;
-    if(timer_create(CLOCK_REALTIME, &runtime_sev, &runtime_timer) == -1) {
-      fprintf(stderr, "Error creating timer. Aborting.\n");
-      exit(1);
-    }
-    
-    runtime_its.it_value.tv_sec     = pw_opts.runtime;
-    runtime_its.it_value.tv_nsec    = 0;
-    runtime_its.it_interval.tv_sec  = runtime_its.it_value.tv_sec;
-    runtime_its.it_interval.tv_nsec = runtime_its.it_value.tv_nsec;
-    if(timer_settime(runtime_timer, 0, &runtime_its, NULL) == -1) {
-      fprintf(stderr, "Error setting the timer. Aborting.\n");
-      exit(1);
-    }
-    
-    /* Unblock the runtime signal */
-    if(sigprocmask(SIG_UNBLOCK, &runtime_mask, NULL) == -1) {
-      fprintf(stderr, "Error unblocking signal. Aborting.\n");
-      exit(1);
-    }
-  }
-
   /* Initialize the current time so that our first interval
      knows how long it took */
   clock_gettime(CLOCK_MONOTONIC, &(interval_end));
@@ -410,12 +363,7 @@ void *ui_thread_main(void *a) {
       break;
     }
   }
-  /* Make sure we get at least one interval; if
-      not intervals have run yet, send the interval signal
-      manually */
-  if(results->interval_num == 0) {
-    pthread_kill(ui_thread_id, interval_signal);
-  }
+  
   ui_thread_stop(SIGTERM);
   
   return NULL;
@@ -459,8 +407,6 @@ int main(int argc, char **argv) {
     return 1;
   }
   
-  pw_opts.csv_file = init_csv(pw_opts.csv_filename);
-  
   /* Open perf events and start gathering */
   bpf_info = calloc(1, sizeof(bpf_info_t));
   if(!bpf_info) {
@@ -476,8 +422,8 @@ int main(int argc, char **argv) {
   init_results();
   
   /* Initialize the UI */
-  if(pw_opts.csv_file) {
-    print_csv_header(pw_opts.csv_file);
+  if(pw_opts.csv) {
+    print_csv_header(stdout);
   }
   
   /* Start the ui thread, which will collect results
@@ -512,10 +458,8 @@ int main(int argc, char **argv) {
 
   /* Send the stop signal to the profiling thread,
      then wait for it to close successfully. */
+  pthread_kill(ui_thread_id, SIGTERM);
   pthread_join(ui_thread_id, NULL);
-  if(pw_opts.csv_file) {
-    deinit_csv(pw_opts.csv_file);
-  }
   
 cleanup:
   deinit_bpf_info();

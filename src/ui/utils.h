@@ -3,6 +3,10 @@
 
 #pragma once
 
+double get_interval_proc_percent_samples(int proc_index) {
+  return results->interval->proc_percent[proc_index];
+}
+
 int get_interval_proc_num_samples(int proc_index) {
   return results->interval->proc_num_samples[proc_index];
 }
@@ -328,6 +332,11 @@ int *sort_insns(int *num_insns) {
 **/
 void calculate_interval_percentages() {
   int i, n;
+  
+  for(i = 0; i < results->interval->proc_arr_size; i++) {
+    if(!(results->interval->proc_num_samples[n])) continue;
+    results->interval->proc_percent[i] = ((double) results->interval->proc_num_samples[i]) / results->interval->num_samples * 100;
+  }
   
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
     if(!(results->num_samples)) continue;
