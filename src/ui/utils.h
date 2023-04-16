@@ -31,10 +31,6 @@ double get_interval_proc_metric(int proc_index, int index) {
 
 #else
 
-int get_proc_num_samples(int proc_index) {
-  return results->proc_num_samples[proc_index];
-}
-
 const char *get_name(int index) {
   if(pw_opts.show_mnemonics) {
     return ZydisMnemonicGetString(index);
@@ -72,30 +68,6 @@ double get_interval_proc_percent(int proc_index, int index) {
       exit(1);
     }
     return results->interval->proc_cat_percent[index][proc_index];
-  }
-}
-
-double get_percent(int index) {
-  if(pw_opts.show_mnemonics) {
-    return results->insn_percent[index];
-  } else {
-    if(index >= ZYDIS_CATEGORY_MAX_VALUE) {
-      fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
-      exit(1);
-    }
-    return results->cat_percent[index];
-  }
-}
-
-double get_proc_percent(int proc_index, int index) {
-  if(pw_opts.show_mnemonics) {
-    return results->proc_insn_percent[index][proc_index];
-  } else {
-    if(index >= ZYDIS_CATEGORY_MAX_VALUE) {
-      fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
-      exit(1);
-    }
-    return results->proc_cat_percent[index][proc_index];
   }
 }
 
@@ -141,15 +113,6 @@ enum qsort_val_type {
       break; \
     case QSORT_INTERVAL_INSN_PERCENT: \
       set = results->interval->insn_percent[val]; \
-      break; \
-    case QSORT_PID: \
-      set = results->proc_num_samples[val]; \
-      break; \
-    case QSORT_CAT_PERCENT: \
-      set = results->cat_percent[val]; \
-      break; \
-    case QSORT_INSN_PERCENT: \
-      set = results->insn_percent[val]; \
       break; \
     default: \
       fprintf(stderr, "Invalid val_type! Aborting.\n"); \
@@ -289,40 +252,6 @@ int *sort_pids(int *num_pids) {
   return pids;
 }
 
-int *sort_insns(int *num_insns) {
-  int *insns, insn, i;
-  
-  /*  Count the number of instructions that actually have values */
-  *num_insns = 0;
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(results->insn_count[i] == 0) {
-      continue;
-    }
-    (*num_insns)++;
-  }
-  
-  if(*num_insns == 0) {
-    return NULL;
-  }
-  
-  insns = malloc(sizeof(int) * (*num_insns));
-  if(!insns) {
-    fprintf(stderr, "Failed to allocate memory! Aborting.\n");
-    exit(1);
-  }
-  insn = 0;
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(results->insn_count[i] == 0) {
-      continue;
-    }
-    insns[insn++] = i;
-  }
-  
-  quicksort(insns, QSORT_INSN_PERCENT, 0, insn - 1);
-  
-  return insns;
-}
-
 /**
   calculate_interval_percentages
   **
@@ -339,8 +268,6 @@ void calculate_interval_percentages() {
   }
   
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(!(results->num_samples)) continue;
-    results->cat_percent[i] = ((double) results->cat_count[i]) / results->num_samples * 100;
     if(!(results->interval->num_samples)) continue;
     results->interval->cat_percent[i] = ((double) results->interval->cat_count[i]) / results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {
@@ -350,42 +277,11 @@ void calculate_interval_percentages() {
   }
   
   for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(!(results->num_samples)) continue;
-    results->insn_percent[i] = ((double) results->insn_count[i]) / results->num_samples * 100;
     if(!(results->interval->num_samples)) continue;
     results->interval->insn_percent[i] = ((double) results->interval->insn_count[i]) / results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {
       if(!(results->interval->proc_num_samples[n])) continue;
       results->interval->proc_insn_percent[i][n] = ((double) results->interval->proc_insn_count[i][n]) / results->interval->proc_num_samples[n] * 100;
-    }
-  }
-}
-
-/**
-  calculate_percentages
-  **
-  For each instruction category and mnemonic, calculate:
-  1. Systemwide percentages.
-  2. Per-process percentages.
-**/
-void calculate_percentages() {
-  int i, n;
-  
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(!(results->num_samples)) continue;
-    results->cat_percent[i] = ((double) results->cat_count[i]) / results->num_samples * 100;
-    for(n = 0; n < results->proc_arr_size; n++) {
-      if(!(results->proc_num_samples[n])) continue;
-      results->proc_cat_percent[i][n] = ((double) results->proc_cat_count[i][n]) / results->proc_num_samples[n] * 100;
-    }
-  }
-  
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(!(results->num_samples)) continue;
-    results->insn_percent[i] = ((double) results->insn_count[i]) / results->num_samples * 100;
-    for(n = 0; n < results->proc_arr_size; n++) {
-      if(!(results->proc_num_samples[n])) continue;
-      results->proc_insn_percent[i][n] = ((double) results->proc_insn_count[i][n]) / results->proc_num_samples[n] * 100;
     }
   }
 }

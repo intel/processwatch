@@ -155,41 +155,15 @@ typedef struct {
 **/
 typedef struct {
 
-#ifdef TMA
-
-  double    tma_metric[NUM_TMA_METRICS];
-  double    *proc_tma_metric[NUM_TMA_METRICS];
-  
-#else
-
-  /* Instruction and category counts and percentages.
-     NOT per-interval; overall. */
-  uint64_t  cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  double    cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
-  
-  /* Per-process (but NOT per-interval) profiling */
-  uint64_t  *proc_cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  *proc_insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    *proc_cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  double    *proc_insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
-  
   /* ZYDIS DISASSEMBLER */
   ZydisDecoder            decoder;
   ZydisFormatter          formatter;
   ZydisDecodedInstruction decoded_insn;
   
-#endif
-
-  int       num_samples;
-  int       *proc_num_samples;
-  
   /* Bookkeeping */
-  uint64_t  interval_num;
-  
   int       pid_ctr;
-  int       proc_arr_size;
+  uint64_t  interval_num;
+  int       num_samples;
   
   process_arr_t process_info;
   

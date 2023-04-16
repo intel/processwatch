@@ -14,7 +14,7 @@
 
 #ifndef TMA
 static void update_pid(uint32_t pid, int cat, int insn, char *name) {
-  int interval_index, index;
+  int interval_index;
   uint32_t hash;
   
   hash = djb2(name);
@@ -26,12 +26,6 @@ static void update_pid(uint32_t pid, int cat, int insn, char *name) {
   results->interval->proc_insn_count[insn][interval_index]++;
   results->interval->proc_num_samples[interval_index]++;
   results->interval->pids[interval_index] = pid;
-  
-  /* Store this result overall, too */
-  index = get_proc_arr_index(pid, name, hash);
-  results->proc_cat_count[cat][index]++;
-  results->proc_insn_count[insn][index]++;
-  results->proc_num_samples[index]++;
 }
 
 /* Only the function signature differs between the perf_buffer and ringbuffer versions */
@@ -54,8 +48,6 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
     }
     results->interval->cat_count[results->decoded_insn.meta.category]++;
     results->interval->insn_count[results->decoded_insn.mnemonic]++;
-    results->cat_count[results->decoded_insn.meta.category]++;
-    results->insn_count[results->decoded_insn.mnemonic]++;
     update_pid((uint32_t) insn_info->pid,
                results->decoded_insn.meta.category,
                results->decoded_insn.mnemonic,
@@ -162,16 +154,11 @@ static void deinit_results() {
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
     free(results->interval->proc_cat_count[i]);
     free(results->interval->proc_cat_percent[i]);
-    free(results->proc_cat_count[i]);
-    free(results->proc_cat_percent[i]);
   }
   for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
     free(results->interval->proc_insn_count[i]);
     free(results->interval->proc_insn_percent[i]);
-    free(results->proc_insn_count[i]);
-    free(results->proc_insn_percent[i]);
   }
-  free(results->proc_num_samples);
 #endif
   free(results->interval);
   free(results);

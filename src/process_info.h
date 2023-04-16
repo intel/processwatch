@@ -16,59 +16,6 @@
   } \
 
 /**
-  grow_proc_arrs: This grows the per-process arrays in
-  the `results_t` struct. It ensures that the per-process
-  array can store up to `pid_ctr + 1` values.
-**/
-#define INITIAL_SIZE 64
-static void grow_proc_arrs() {
-  int old_size, new_size, i, n;
-  
-  /* We don't need to allocate anything */
-  if((results->pid_ctr <= results->proc_arr_size - 1) &&
-     (results->proc_arr_size != 0)) {
-    return;
-  }
-  
-  /* Figure out the old size and new size */
-  old_size = results->proc_arr_size;
-  if(old_size == 0) {
-    new_size = INITIAL_SIZE;
-  } else {
-    new_size = (results->proc_arr_size * 2);
-  }
-  
-  resize_array(results->proc_num_samples, old_size, new_size, int, 0, n);
-  
-#ifdef TMA
-
-  for(i = 0; i < bpf_info->tma->num_metrics; i++) {
-    resize_array(results->proc_tma_metric[i], old_size, new_size, double, 0, n);
-  }
-
-#else
-          
-  
-  /* CATEGORIES */
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    resize_array(results->proc_cat_count[i], old_size, new_size, uint64_t, 0, n);
-    resize_array(results->proc_cat_percent[i], old_size, new_size, double, 0, n);
-  }
-  
-  /* MNEMONICS */
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    resize_array(results->proc_insn_count[i], old_size, new_size, uint64_t, 0, n);
-    resize_array(results->proc_insn_percent[i], old_size, new_size, double, 0, n);
-  }
-  
-#endif
-  
-  results->proc_arr_size = new_size;
-  
-  return;
-}
-
-/**
   grow_interval_proc_arrs: This grows the per-process arrays in
   the `interval_results_t` struct. It ensures that the per-process
   array can store up to `pid_ctr + 1` values.
@@ -233,7 +180,6 @@ static void update_one_process_info(uint32_t pid, char *name, uint32_t hash, int
   process->name = strdup(name);
   process->name_hash = hash;
   process->index = results->pid_ctr++;
-  grow_proc_arrs();
   results->process_info.arr[pid][num_procs] = process;
   results->process_info.arr[pid][num_procs + 1] = NULL;
 }
@@ -255,7 +201,6 @@ static void add_process_info(uint32_t pid, char *name, uint32_t hash) {
   process->name = strdup(name);
   process->name_hash = hash;
   process->index = results->pid_ctr++;
-  grow_proc_arrs();
   
   /* Now add that process_t to the process_arr_t struct */
   results->process_info.arr[pid] = (process_t **) malloc(sizeof(process_t *) * 2);
@@ -301,16 +246,3 @@ static int get_interval_proc_arr_index(uint32_t pid) {
   
   return i;
 }
-
-#ifndef TMA
-static int get_proc_arr_index(uint32_t pid, char *name, uint32_t hash) {
-  process_t *process;
-  
-  /* Since update_process_info has *just* been called with this
-     same pid, name, and hash combination, there's no possibility
-     that we don't find it here. Famous last words? */
-  process = get_process_info(pid, hash);
-  assert(process != NULL);
-  return process->index;
-}
-#endif
