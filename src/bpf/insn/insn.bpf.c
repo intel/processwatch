@@ -27,7 +27,7 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
   /* Construct the insn_info struct */
   u64 pid_tgid = bpf_get_current_pid_tgid();
   u32 pid = pid_tgid >> 32;
-  insn_info->pid = pid;
+  insn_info.pid = pid;
 
   retval = bpf_probe_read_user(insn_info.insn, 15, (void *) ctx->regs.ip);
   if(retval < 0) {
