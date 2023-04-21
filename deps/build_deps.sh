@@ -7,21 +7,10 @@
 #  This is NOT meant to be used standalone. It relies on an
 #  environment variable,"TMA", which is set by build.sh.
 ###################################################################
-DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
-
-# USER-CHANGEABLE OPTIONS
-export CMAKE="cmake"
-
-if ! command -v ${CMAKE} &> /dev/null; then
-  export CMAKE="cmake3"
-  if ! command -v ${CMAKE} &> /dev/null; then
-    echo "Could not find CMake. I tried 'cmake' and 'cmake3'."
-    exit 1
-  fi
-fi
+BUILD_DEPS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # These are used to compile the dependencies
-DEPS_DIR="${DIR}/deps"
+DEPS_DIR="${BUILD_DEPS_DIR}"
 BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
 ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
@@ -36,6 +25,9 @@ BUILD_LOGS=${DEPS_DIR}/build_logs
 rm -rf ${BUILD_LOGS} || true
 mkdir -p ${BUILD_LOGS} || true
 
+git submodule init
+git submodule update
+
 ###################################################################
 #                            bpftool
 ###################################################################
@@ -44,28 +36,31 @@ mkdir -p ${BUILD_LOGS} || true
 # equivalent, since that can sometimes be a pain, especially if
 # they're not running the latest available kernel for their
 # distribution. Also builds a static copy of libbpf.
-echo "  Compiling libbpf and bpftool..."
+if ! command -v ${BPFTOOL} &> /dev/null; then
+  echo "  No system bpftool found! Compiling libbpf and bpftool..."
 
-cd ${BPFTOOL_SRC_DIR}
-git submodule init
-git submodule update
+  cd ${BPFTOOL_SRC_DIR}
 
-make 2>&1 | tee ${BUILD_LOGS}/bpftool.log
-RETVAL=$?
-if [ ${RETVAL} -ne 0 ]; then
-  echo "Building bpftool failed. Please see ${BUILD_LOGS}/bpftool.log for more details."
-  exit 1
+  make &>> ${BUILD_LOGS}/bpftool.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "  Building bpftool failed. Please see ${BUILD_LOGS}/bpftool.log for more details."
+    exit 1
+  fi
+
+  # Install the bpftool binary and the static libbpf.a
+  mkdir -p ${PREFIX}/bin
+  mkdir -p ${PREFIX}/lib
+  mkdir -p ${PREFIX}/include
+  cp bpftool ${PREFIX}/bin/bpftool
+  cp libbpf/libbpf.a ${PREFIX}/lib/libbpf.a
+  cp -r libbpf/include/* ${PREFIX}/include/
+
+  export PATH="${PREFIX}/bin:${PATH}"
+else
+  echo "  Using system bpftool."
 fi
 
-# Install the bpftool binary and the static libbpf.a
-mkdir -p ${PREFIX}/bin
-mkdir -p ${PREFIX}/lib
-mkdir -p ${PREFIX}/include
-cp bpftool ${PREFIX}/bin/bpftool
-cp libbpf/libbpf.a ${PREFIX}/lib/libbpf.a
-cp -r libbpf/include/* ${PREFIX}/include/
-
-export PATH="${PREFIX}/bin:${PATH}"
 
 ###################################################################
 #                              zydis
@@ -76,33 +71,34 @@ if [ "${TMA}" = false ]; then
   
   mkdir -p "${PREFIX}"
   cd ${ZYDIS_SRC_DIR}
-  git submodule init \
-    2>&1 | tee ${BUILD_LOGS}/zydis.log
-  git submodule update \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
   
   # Zycore, the only dependency of Zydis
   cd dependencies/zycore
-  rm -rf build && mkdir build && cd build
+  rm -rf build \
+    &>> ${BUILD_LOGS}/zydis.log
+  mkdir build \
+    &>> ${BUILD_LOGS}/zydis.log
+  cd build
+    &>> ${BUILD_LOGS}/zydis.log
   ${CMAKE} \
     -DCMAKE_INSTALL_PREFIX=${PREFIX} \
     .. \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
-    echo "Compiling Zycore failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    echo "  Compiling Zycore failed. Please check ${BUILD_LOGS}/zydis.log for more details."
     exit 1
   fi
   
   make \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
-    echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    echo "  Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
     exit 1
   fi
   make install \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   
   # Zydis itself
   cd ${ZYDIS_SRC_DIR}
@@ -114,7 +110,7 @@ if [ "${TMA}" = false ]; then
     -DZYDIS_BUILD_TOOLS=OFF \
     -DZYDIS_FEATURE_AVX512=ON \
     .. \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
     echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
@@ -122,16 +118,16 @@ if [ "${TMA}" = false ]; then
   fi
     
   make \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
     echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
     exit 1
   fi
   make install \
-    2>&1 | tee -a ${BUILD_LOGS}/zydis.log
+    &>> ${BUILD_LOGS}/zydis.log
   
-  cd ${DIR}
+  cd ${DEPS_DIR}
 fi
 
 ###################################################################
@@ -145,10 +141,10 @@ if [ "${TMA}" = true ]; then
   
   cd ${TINYEXPR_SRC_DIR}
   clang -c tinyexpr.c -o tinyexpr.o
-  cp tinyexpr.o ${DIR}/src
+  cp tinyexpr.o ${DEPS_DIR}/src
   mkdir -p ${PREFIX}/include
   cp tinyexpr.h ${PREFIX}/include
-  cd ${DIR}
+  cd ${DEPS_DIR}
 fi
 
 ###################################################################
@@ -160,21 +156,21 @@ if [ "${TMA}" = true ]; then
   echo "  Compiling jevents..."
   
   make -C ${JEVENTS_SRC_DIR} clean \
-    2>&1 | tee ${BUILD_LOGS}/jevents.log
+    &>> ${BUILD_LOGS}/jevents.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
     echo "Cleaning jevents failed. Please check ${BUILD_LOGS}/jevents.log for more details."
     exit 1
   fi
   make -C ${JEVENTS_SRC_DIR} \
-    2>&1 | tee -a ${BUILD_LOGS}/jevents.log
+    &>> ${BUILD_LOGS}/jevents.log
   RETVAL=$?
   if [ ${RETVAL} -ne 0 ]; then
     echo "Compiling jevents failed. Please check ${BUILD_LOGS}/jevents.log for more details."
     exit 1
   fi
   cp ${JEVENTS_SRC_DIR}/libjevents.a ${PREFIX}/lib \
-    2>&1 | tee -a ${BUILD_LOGS}/jevents.log
+    &>> ${BUILD_LOGS}/jevents.log
   cp ${JEVENTS_SRC_DIR}/*.h ${PREFIX}/include \
-    2>&1 | tee -a ${BUILD_LOGS}/jevents.log
+    &>> ${BUILD_LOGS}/jevents.log
 fi
