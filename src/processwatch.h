@@ -179,7 +179,7 @@ extern struct pw_opts_t pw_opts;
 
 /* Reading from BPF and storing the results */
 #include "results.h"
-#include "detect_pmu.h"
+#include "kerninfo.h"
 #include "setup_bpf.h"
 #include "process_info.h"
 #include "tma.h"

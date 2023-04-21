@@ -92,7 +92,7 @@ git submodule update
 ###################################################################
 if [ "${BUILD_DEPS}" = true ]; then
   echo "Compiling dependencies..."
-  ${DIR}/build_deps.sh
+  source ${DIR}/deps/build_deps.sh
 fi
 
 export PATH="${PREFIX}/bin:${PATH}"
@@ -126,4 +126,4 @@ fi
 export CC="${PW_CC}"
 export CXX="${PW_CXX}"
 ${DIR}/src/build.sh
-cp src/processwatch ${DIR}
+cp ${DIR}/src/processwatch ${DIR}

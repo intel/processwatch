@@ -38,11 +38,8 @@ static struct option long_options[] = {
 };
 
 struct pw_opts_t pw_opts;
-static char *default_col_strs[3] = {
-  "AVX",
-  "AVX2",
-  "AVX512"
-};
+static int num_default_col_strs = 0;
+static char **default_col_strs = NULL;
 static char *default_mnem_col_strs[1] = {
   "vrcp14pd"
 };
@@ -50,6 +47,12 @@ static char *default_mnem_col_strs[1] = {
 void free_opts() {
   int i;
   
+  if(pw_opts.col_strs != default_col_strs) {
+    for(i = 0; i < num_default_col_strs; i++) {
+      free(default_col_strs[i]);
+    }
+    free(default_col_strs);
+  }
   if((pw_opts.col_strs != default_col_strs) &&
      (pw_opts.col_strs != default_mnem_col_strs)) {
     for(i = 0; i < pw_opts.col_strs_len; i++) {
@@ -161,6 +164,17 @@ int read_opts(int argc, char **argv) {
     exit(0);
   }
   
+  default_col_strs = malloc(sizeof(char *) * 3);
+  default_col_strs[0] = strdup("AVX");
+  default_col_strs[1] = strdup("AVX2");
+  default_col_strs[2] = strdup("AVX512");
+  num_default_col_strs = 3;
+  if(supports_amx_tile()) {
+    default_col_strs = realloc(default_col_strs, sizeof(char *) * 4);
+    default_col_strs[3] = strdup("AMX_TILE");
+    num_default_col_strs++;
+  }
+  
   if(pw_opts.col_strs == NULL) {
     /* If the user didn't specify -f even once */
     if(pw_opts.show_mnemonics) {
@@ -168,7 +182,7 @@ int read_opts(int argc, char **argv) {
       pw_opts.col_strs_len = 1;
     } else {
       pw_opts.col_strs = default_col_strs;
-      pw_opts.col_strs_len = 3;
+      pw_opts.col_strs_len = num_default_col_strs;
     }
   }
   
