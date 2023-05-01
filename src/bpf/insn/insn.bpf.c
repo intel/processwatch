@@ -6,6 +6,17 @@
 #include <bpf/bpf_tracing.h>
 #include "insn.h"
 
+#ifdef INSNPROF_STACKS
+
+struct {
+  __uint(type, BPF_MAP_TYPE_STACK_TRACE);
+  __uint(key_size, sizeof(__u32));
+  __uint(value_size, sizeof(__u64) * PERF_MAX_STACK_DEPTH);
+  __uint(max_entries, MAX_STACK_ENTRIES);
+} stackmap SEC(".maps");
+
+#endif
+
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
 
 /**
@@ -35,12 +46,16 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
   }
   bpf_get_current_comm(insn_info.name, sizeof(insn_info.name));
   
-  /* Place insn_info in the ringbuf */
+  /* Place insn_info in the perf buffer */
 #ifdef BPF_F_CURRENT_CPU
   bpf_perf_event_output(ctx, &pb, BPF_F_CURRENT_CPU, &insn_info, sizeof(struct insn_info));
 #else
   cpu = bpf_get_smp_processor_id();
   bpf_perf_event_output(ctx, &pb, cpu, &insn_info, sizeof(struct insn_info));
+#endif
+
+#ifdef INSNPROF_STACKS
+  insn_info.user_stack_id = bpf_get_stackid(ctx, &stackmap, BPF_F_USER_STACK);
 #endif
   
   return 0;
@@ -79,6 +94,10 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
     return 1;
   }
   bpf_get_current_comm(insn_info->name, sizeof(insn_info->name));
+  
+#ifdef INSNPROF_STACKS
+  insn_info->user_stack_id = bpf_get_stackid(ctx, &stackmap, BPF_F_USER_STACK);
+#endif
   
   /* Place insn_info in the ringbuf */
   bpf_ringbuf_submit(insn_info, 0);

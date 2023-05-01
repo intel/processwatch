@@ -56,6 +56,12 @@ typedef struct {
   size_t num_links;
   int nr_cpus;
   char pmu_name[32];
+
+#ifdef INSNPROF_STACKS
+  /* Caches */
+  struct syms_cache *syms_cache;
+  unsigned long *ip;
+#endif
   
 #ifdef TMA
   /* Instead of a ring buffer, TMA uses file descriptors */
@@ -63,6 +69,7 @@ typedef struct {
 #else
   struct ring_buffer *rb;
   struct perf_buffer *pb;
+  int stackmap_fd;
 #endif
   
 } bpf_info_t;

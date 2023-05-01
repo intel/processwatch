@@ -31,12 +31,16 @@ fi
 export DEBUG=false
 export LEGACY=false
 export TMA=false
+export STACKS=false
 export BUILD_DEPS=true
-usage() { echo "Usage: $0 [-l] [-t] [-b] [-d]" 1>&2; exit 1; }
-while getopts ":ltbd" arg; do
+usage() { echo "Usage: $0 [-l] [-s] [-t] [-b] [-d]" 1>&2; exit 1; }
+while getopts ":lstbd" arg; do
   case $arg in
     l)
       LEGACY=true
+      ;;
+    s)
+      STACKS=true
       ;;
     t)
       # This is an experimental feature that could be enabled in a future version
@@ -71,6 +75,11 @@ fi
 if [ "${LEGACY}" = true ]; then
   export BPF_CFLAGS="${BPF_CFLAGS} -DINSNPROF_LEGACY_PERF_BUFFER"
   export PW_CFLAGS="${PW_CFLAGS} -DINSNPROF_LEGACY_PERF_BUFFER"
+fi
+if [ "${STACKS}" = true ]; then
+  echo "Collecting stacks."
+  export BPF_CFLAGS="${BPF_CFLAGS} -DINSNPROF_STACKS"
+  export PW_CFLAGS="${PW_CFLAGS} -DINSNPROF_STACKS"
 fi
 if [ "${TMA}" = true ]; then
   export PW_CFLAGS="${PW_CFLAGS} -DTMA"
@@ -118,6 +127,11 @@ fi
 # jevents
 if [ "${TMA}" = true ]; then
   export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libjevents.a"
+fi
+
+# trace_helpers
+if [ "${STACKS}" = true ]; then
+  export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/trace_helpers.o ${PREFIX}/lib/uprobe_helpers.o"
 fi
         
 ###################################################################

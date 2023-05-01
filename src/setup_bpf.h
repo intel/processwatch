@@ -219,6 +219,15 @@ static int init_insn_bpf_info() {
     return -1;
   }
 #endif
+#ifdef INSNPROF_STACKS
+  bpf_info->ip = calloc(PERF_MAX_STACK_DEPTH, sizeof(unsigned long));
+  bpf_info->syms_cache = syms_cache__new(PERF_MAX_STACK_DEPTH);
+  if(!(bpf_info->syms_cache)) {
+    fprintf(stderr, "Failed to create syms_cache.\n");
+    return -1;
+  }
+  bpf_info->stackmap_fd = bpf_map__fd(bpf_info->obj->maps.stackmap);
+#endif
   
   bpf_info->nr_cpus = libbpf_num_possible_cpus();
   get_pmu_string(bpf_info->pmu_name);
