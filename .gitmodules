@@ -10,3 +10,6 @@
 [submodule "deps/zydis"]
 	path = deps/zydis
 	url = https://github.com/zyantific/zydis.git
+[submodule "deps/bcc"]
+	path = deps/bcc
+	url = https://github.com/iovisor/bcc.git

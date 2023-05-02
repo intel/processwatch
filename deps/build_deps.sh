@@ -15,7 +15,7 @@ BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
 ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
 JEVENTS_SRC_DIR="${DEPS_DIR}/pmu-tools/jevents"
-TRACE_HELPERS_SRC_DIR="${DEPS_DIR}/trace_helpers"
+BCC_SRC_DIR="${DEPS_DIR}/bcc"
 
 # We export these because they're used by src/build.sh
 export PREFIX="${DEPS_DIR}/install"
@@ -177,13 +177,13 @@ if [ "${TMA}" = true ]; then
 fi
 
 ###################################################################
-#                         trace_helpers
+#                         BCC
 ###################################################################
 # This is a small collection of functions used in BCC, to maintain
 # and access a cache of kernel and userspace symbols.
 if [ "${STACKS}" = true ]; then
   echo "  Compiling trace_helpers..."
-  cd ${TRACE_HELPERS_SRC_DIR}
+  cd ${BCC_SRC_DIR}/libbpf-tools
   ${CLANG} ${CFLAGS} -c trace_helpers.c -o trace_helpers.o
   ${CLANG} ${CFLAGS} -c uprobe_helpers.c -o uprobe_helpers.o
   mkdir -p ${PREFIX}/include
