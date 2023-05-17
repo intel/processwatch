@@ -36,27 +36,27 @@ git submodule update
 # equivalent, since that can sometimes be a pain, especially if
 # they're not running the latest available kernel for their
 # distribution. Also builds a static copy of libbpf.
+
+cd ${BPFTOOL_SRC_DIR}
+
+make &>> ${BUILD_LOGS}/bpftool.log
+RETVAL=$?
+if [ ${RETVAL} -ne 0 ]; then
+  echo "  Building bpftool failed. Please see ${BUILD_LOGS}/bpftool.log for more details."
+  exit 1
+fi
+
+# Install the bpftool binary and the static libbpf.a
+mkdir -p ${PREFIX}/bin
+mkdir -p ${PREFIX}/lib
+mkdir -p ${PREFIX}/include
+cp bpftool ${PREFIX}/bin/bpftool
+cp libbpf/libbpf.a ${PREFIX}/lib/libbpf.a
+cp -r libbpf/include/* ${PREFIX}/include/
+
 if ! command -v ${BPFTOOL} &> /dev/null; then
-  echo "  No system bpftool found! Compiling libbpf and bpftool..."
-
-  cd ${BPFTOOL_SRC_DIR}
-
-  make &>> ${BUILD_LOGS}/bpftool.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "  Building bpftool failed. Please see ${BUILD_LOGS}/bpftool.log for more details."
-    exit 1
-  fi
-
-  # Install the bpftool binary and the static libbpf.a
-  mkdir -p ${PREFIX}/bin
-  mkdir -p ${PREFIX}/lib
-  mkdir -p ${PREFIX}/include
-  cp bpftool ${PREFIX}/bin/bpftool
-  cp libbpf/libbpf.a ${PREFIX}/lib/libbpf.a
-  cp -r libbpf/include/* ${PREFIX}/include/
-
   export PATH="${PREFIX}/bin:${PATH}"
+  echo "  No system bpftool found! Compiling libbpf and bpftool..."
 else
   echo "  Using system bpftool."
 fi
