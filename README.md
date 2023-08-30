@@ -61,7 +61,7 @@ Ubuntu 18.04 requires a bit more work; the default LLVM version is too old:
 sudo apt-get update
 sudo apt-get install libelf-dev cmake clang-10 llvm-10 llvm-10-dev
 ```
-Then edit `build.sh` and append `-10` to the values of `CLANG`, `CLANGXX`, and `LLVMSTRIP`.
+Then edit `build.sh` and append `-10` to the values of `CLANG`, `CLANGXX`, and `LLVM_STRIP`.
 
 On CentOS 8.4, CentOS 8 Stream, and CentOS 9 Stream:
 ```

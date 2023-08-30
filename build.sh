@@ -11,13 +11,14 @@
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
 # USER-CHANGEABLE OPTIONS
-export CLANG="clang"
-export CLANGXX="clang++"
-export LLVMSTRIP="llvm-strip"
+export CLANG="${CLANG:-clang}"
+export CLANGXX="${CLANGXX:-clang++}"
+export LLVM_STRIP="${LLVM_STRIP:-llvm-strip}"
+export LLVM_CONFIG="${LLVM_CONFIG:-llvm-config}"
 export PW_CC="${CLANG}"
 export PW_CXX="${CLANGXX}"
-export BPFTOOL="bpftool"
-export CMAKE="cmake"
+export BPFTOOL="${BPFTOOL:-bpftool}"
+export CMAKE="${CMAKE:-cmake}"
 
 if ! command -v ${CMAKE} &> /dev/null; then
   export CMAKE="cmake3"

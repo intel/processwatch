@@ -33,6 +33,7 @@ static struct option long_options[] = {
   {"sample-period", required_argument, 0, 's'},
   {"filter",        required_argument, 0, 'f'},
   {"list",          no_argument,       0, 'l'},
+  {"btf",           required_argument, 0, 'b'},
   {"help",          no_argument,       0, 'h'},
   {0,               0,                 0, 0}
 };
@@ -64,6 +65,7 @@ void free_opts() {
 
 int read_opts(int argc, char **argv) {
   int option_index, i, n, len, max_value;
+  size_t size;
   char c, found;
   const char *name;
 
@@ -72,6 +74,7 @@ int read_opts(int argc, char **argv) {
   pw_opts.pid = -1;
   pw_opts.show_mnemonics = 0;
   pw_opts.csv = 0;
+  pw_opts.btf_custom_path = NULL;
   
 #ifdef TMA
   pw_opts.sample_period = 10000;
@@ -88,7 +91,7 @@ int read_opts(int argc, char **argv) {
   
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:cp:ms:f:hln:",
+    c = getopt_long(argc, argv, "i:cp:ms:f:hln:b:",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -113,6 +116,14 @@ int read_opts(int argc, char **argv) {
         printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
         return -1;
         break;
+      case 'b':
+        if(pw_opts.btf_custom_path) {
+          fprintf(stderr, "Multiple custom BTF files specified! Aborting.\n");
+          exit(1);
+        }
+        size = strlen(optarg);
+        pw_opts.btf_custom_path = calloc(size + 1, sizeof(char));
+        strncpy(pw_opts.btf_custom_path, optarg, size);
       case 'i':
         /* Length in seconds of an interval */
         pw_opts.interval_time = strtoul(optarg, NULL, 10);

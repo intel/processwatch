@@ -27,6 +27,8 @@ struct pw_opts_t {
   unsigned char show_mnemonics : 1;
   unsigned int sample_period;
   
+  char *btf_custom_path;
+  
   char **col_strs;
   int col_strs_len;
   int *cols;

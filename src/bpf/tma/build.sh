@@ -38,7 +38,7 @@ function compile_bpf() {
 }
 
 function strip_bpf() {
-  ${LLVMSTRIP} -g ${DIR}/maps/map${1}.bpf.o
+  ${LLVM_STRIP} -g ${DIR}/maps/map${1}.bpf.o
 }
 
 rm -rf ${DIR}/maps

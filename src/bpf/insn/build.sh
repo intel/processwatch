@@ -26,7 +26,7 @@ ${CLANG} ${BPF_CFLAGS} -target bpf -D__TARGET_ARCH_x86 \
 
 # Strip the object file (for a smaller filesize)
 echo "  Stripping the object file..."
-${LLVMSTRIP} -g ${DIR}/insn.bpf.o
+${LLVM_STRIP} -g ${DIR}/insn.bpf.o
 
 # Compile the object file into the skeleton header
 echo "  Generating the BPF skeleton header..."

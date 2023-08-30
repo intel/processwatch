@@ -70,6 +70,13 @@ static int open_and_attach_perf_event(struct perf_event_attr *attr, int cpu, int
 #ifdef TMA
 
 static int init_tma_bpf_info() {
+  int err;
+  struct bpf_object_open_opts opts = {0};
+  
+  opts.sz = sizeof(struct bpf_object_open_opts);
+  if(pw_opts.btf_custom_path) {
+    opts.btf_custom_path = pw_opts.btf_custom_path;
+  }
   
   bpf_info->nr_cpus = libbpf_num_possible_cpus();
   get_pmu_string(bpf_info->pmu_name);
@@ -77,13 +84,17 @@ static int init_tma_bpf_info() {
     return -1;
   }
   
-  /* Open the perf_slots BPF program */
-  bpf_info->obj = perf_slots_bpf__open_and_load();
+  bpf_info->obj = perf_slots_bpf__open_opts(&opts);
   if(!bpf_info->obj) {
     fprintf(stderr, "ERROR: Failed to get BPF object.\n");
     fprintf(stderr, "       Most likely, one of two things are true:\n");
     fprintf(stderr, "       1. You're not root.\n");
     fprintf(stderr, "       2. You don't have a kernel that supports BTF type information.\n");
+    return -1;
+  }
+  err = perf_slots_bpf__load(bpf_info->obj);
+  if(err) {
+    fprintf(stderr, "Failed to load BPF object!\n");
     return -1;
   }
   
@@ -185,12 +196,25 @@ static int single_insn_event(int cpu, int pid) {
 }
 
 static int init_insn_bpf_info() {
-  bpf_info->obj = insn_bpf__open_and_load();
+  int err;
+  struct bpf_object_open_opts opts = {0};
+  
+  opts.sz = sizeof(struct bpf_object_open_opts);
+  if(pw_opts.btf_custom_path) {
+    opts.btf_custom_path = pw_opts.btf_custom_path;
+  }
+  
+  bpf_info->obj = insn_bpf__open_opts(&opts);
   if(!bpf_info->obj) {
     fprintf(stderr, "ERROR: Failed to get BPF object.\n");
     fprintf(stderr, "       Most likely, one of two things are true:\n");
     fprintf(stderr, "       1. You're not root.\n");
     fprintf(stderr, "       2. You don't have a kernel that supports BTF type information.\n");
+    return -1;
+  }
+  err = insn_bpf__load(bpf_info->obj);
+  if(err) {
+    fprintf(stderr, "Failed to load BPF object!\n");
     return -1;
   }
 
