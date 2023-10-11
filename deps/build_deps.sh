@@ -39,6 +39,7 @@ git submodule update
 
 cd ${BPFTOOL_SRC_DIR}
 
+make clean &> ${BUILD_LOGS}/bpftool.log
 make &>> ${BUILD_LOGS}/bpftool.log
 RETVAL=$?
 if [ ${RETVAL} -ne 0 ]; then
