@@ -12,9 +12,9 @@ static void print_csv_header(FILE *csv_file) {
   if(!csv_file) return;
   
   fprintf(csv_file, "interval,pid,name,");
-  for(i = 0; i < get_max_value(); i++) {
-    fprintf(csv_file, "%s", get_name(i));
-    if(i != (get_max_value() - 1))  {
+  for(i = 0; i < pw_opts.cols_len; i++) {
+    fprintf(csv_file, "%s", get_name(pw_opts.cols[i]));
+    if(i != (pw_opts.cols_len - 1))  {
       fprintf(csv_file, ",");
     }
   }
@@ -31,13 +31,13 @@ static void print_csv_interval(FILE *csv_file) {
   fprintf(csv_file, "%" PRIu64 ",", results->interval_num);
   fprintf(csv_file, "%s,", "ALL");
   fprintf(csv_file, "%s,", "ALL");
-  for(i = 0; i < get_max_value(); i++) {
+  for(i = 0; i < pw_opts.cols_len; i++) {
 #ifdef TMA
 /*     fprintf(csv_file, "%lf", 0); */
 #else
-    fprintf(csv_file, "%lf", get_interval_percent(i));
+    fprintf(csv_file, "%lf", get_interval_percent(pw_opts.cols[i]));
 #endif
-    if(i != (get_max_value() - 1))  {
+    if(i != (pw_opts.cols_len - 1))  {
       fprintf(csv_file, ",");
     }
   }
@@ -53,9 +53,9 @@ static void print_csv_interval(FILE *csv_file) {
     fprintf(csv_file, "%" PRIu64 ",", results->interval_num);
     fprintf(csv_file, "%d,", results->interval->pids[i]);
     fprintf(csv_file, "%s,", process->name);
-    for(n = 0; n < get_max_value(); n++) {
-      fprintf(csv_file, "%lf", get_interval_proc_percent(process->index, n));
-      if(n != (get_max_value() - 1))  {
+    for(n = 0; n < pw_opts.cols_len; n++) {
+      fprintf(csv_file, "%lf", get_interval_proc_percent(process->index, pw_opts.cols[n]));
+      if(n != (pw_opts.cols_len - 1))  {
         fprintf(csv_file, ",");
       }
     }
