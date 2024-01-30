@@ -3,12 +3,24 @@
 
 #pragma once
 
+double get_interval_ringbuf_used() {
+  return results->interval->ringbuf_used;
+}
+
 double get_interval_proc_percent_samples(int proc_index) {
   return results->interval->proc_percent[proc_index];
 }
 
-int get_interval_proc_num_samples(int proc_index) {
+double get_interval_proc_percent_failed(int proc_index) {
+  return results->interval->proc_failed_percent[proc_index];
+}
+
+uint64_t get_interval_proc_num_samples(int proc_index) {
   return results->interval->proc_num_samples[proc_index];
+}
+
+uint64_t get_interval_num_samples() {
+  return results->interval->num_samples;
 }
 
 #ifdef TMA
@@ -57,6 +69,10 @@ double get_interval_percent(int index) {
     }
     return results->interval->cat_percent[index];
   }
+}
+
+double get_interval_failed_percent() {
+  return results->interval->failed_percent;
 }
 
 double get_interval_proc_percent(int proc_index, int index) {
@@ -262,26 +278,37 @@ int *sort_pids(int *num_pids) {
 void calculate_interval_percentages() {
   int i, n;
   
+  if(!(results->interval->num_samples)) {
+    return;
+  }
+  
+  results->interval->failed_percent = ((double) results->interval->num_failed) /
+                                                results->interval->num_samples * 100;
+  
   for(i = 0; i < results->interval->proc_arr_size; i++) {
-    if(!(results->interval->num_samples)) continue;
-    results->interval->proc_percent[i] = ((double) results->interval->proc_num_samples[i]) / results->interval->num_samples * 100;
+    results->interval->proc_percent[i] = ((double) results->interval->proc_num_samples[i]) /
+                                                   results->interval->num_samples * 100;
+    results->interval->proc_failed_percent[i] = ((double) results->interval->proc_num_failed[i]) /
+                                                   results->interval->num_samples * 100;
   }
   
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
-    if(!(results->interval->num_samples)) continue;
-    results->interval->cat_percent[i] = ((double) results->interval->cat_count[i]) / results->interval->num_samples * 100;
+    results->interval->cat_percent[i] = ((double) results->interval->cat_count[i]) /
+                                                  results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {
       if(!(results->interval->proc_num_samples[n])) continue;
-      results->interval->proc_cat_percent[i][n] = ((double) results->interval->proc_cat_count[i][n]) / results->interval->proc_num_samples[n] * 100;
+      results->interval->proc_cat_percent[i][n] = ((double) results->interval->proc_cat_count[i][n]) /
+                                                            results->interval->proc_num_samples[n] * 100;
     }
   }
   
   for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
-    if(!(results->interval->num_samples)) continue;
-    results->interval->insn_percent[i] = ((double) results->interval->insn_count[i]) / results->interval->num_samples * 100;
+    results->interval->insn_percent[i] = ((double) results->interval->insn_count[i]) /
+                                                   results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {
       if(!(results->interval->proc_num_samples[n])) continue;
-      results->interval->proc_insn_percent[i][n] = ((double) results->interval->proc_insn_count[i][n]) / results->interval->proc_num_samples[n] * 100;
+      results->interval->proc_insn_percent[i][n] = ((double) results->interval->proc_insn_count[i][n]) /
+                                                             results->interval->proc_num_samples[n] * 100;
     }
   }
 }

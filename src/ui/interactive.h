@@ -12,6 +12,7 @@ static int  cols_fit = 0;
 static int  rows_fit = 0;
 static int  tot_screen_width = 0;
 static int  tot_screen_height = 0;
+static char tmp_str[8];
 
 /* The sorted_interval struct stores the sorted
    indices, PIDs, and process names of all
@@ -27,6 +28,21 @@ struct sorted_interval {
   char **proc_names;
 };
 static struct sorted_interval *sorted_interval = NULL;
+
+char *truncate_uint64(uint64_t val, char *str, int size) {
+  memset(str, 0, size);
+  if(val < 10000) {
+    /* Less than 10k, just print the whole number */
+    snprintf(str, size, "%-*.*" PRIu64, col_width, col_width, val);
+  } else if((val >= 10000) && (val < 1000000)) {
+    /* More than 10k and less than 1m, add "k" suffix */
+    snprintf(str, size, "%" PRIu64 "k", val / 1000);
+  } else {
+    /* More than 1m, add "m" suffix */
+    snprintf(str, size, "%" PRIu64 "m", val / 1000000);
+  }
+  return str;
+}
 
 void update_screen(struct sorted_interval **sortint_arg) {
   int i, n, index;
@@ -70,50 +86,77 @@ void update_screen(struct sorted_interval **sortint_arg) {
     *sortint_arg = sortint;
   }
   
-  /* Print the header */
+  /****************************************************************************
+                                    HEADER
+  ****************************************************************************/
   printf("\n");
   printf("%-*s %-*s", pid_col_width, "PID", name_col_width, "NAME");
-  for(i = 0; i < pw_opts.cols_len; i++) {
-    printf(" ");
-    printf("%-*.*s", col_width, col_width, get_name(pw_opts.cols[i]));
+  if(pw_opts.debug) {
+    /* Only print debug stuff */
+    printf(" %-*.*s", col_width, col_width, "%ERROR");
+    printf(" %-*.*s", col_width, col_width, "%RINGBUF");
+  } else {
+    /* Print chosen instruction groups */
+    for(i = 0; i < pw_opts.cols_len; i++) {
+      printf(" ");
+      printf("%-*.*s", col_width, col_width, get_name(pw_opts.cols[i]));
+    }
   }
   printf(" %-*.*s", col_width, col_width, "%TOTAL");
+  printf(" %-*.*s", col_width, col_width, "TOTAL");
   printf("\n");
   
+  /****************************************************************************
+                                 ALL PIDS
+  ****************************************************************************/
   printf("%-*s ", pid_col_width, "ALL");
   printf("%-*s", name_col_width, "ALL");
-  for(i = 0; i < pw_opts.cols_len; i++) {
-    printf(" ");
+  if(pw_opts.debug) {
+    printf(" %-*.*lf", col_width, 2, get_interval_failed_percent());
+    printf(" %-*.*lf", col_width, 2, get_interval_ringbuf_used());
+  } else {
+    for(i = 0; i < pw_opts.cols_len; i++) {
+      printf(" ");
 #ifdef TMA
-    printf("%-*.*lf",
-            col_width, 2,
-            get_interval_metric(pw_opts.cols[i]));
+      printf("%-*.*lf",
+              col_width, 2,
+              get_interval_metric(pw_opts.cols[i]));
 #else
-    printf("%-*.*lf",
-            col_width, 2, /* Two digits of precision */
-            get_interval_percent(pw_opts.cols[i]));
+      printf("%-*.*lf",
+              col_width, 2, /* Two digits of precision */
+              get_interval_percent(pw_opts.cols[i]));
 #endif
+    }
   }
   printf(" %-*.*lf", col_width, 2, 100.0);
+  printf(" %-*.*s", col_width, col_width, truncate_uint64(get_interval_num_samples(), tmp_str, 8));
   printf("\n");
 
-  /* Print one PID per line */
+  /****************************************************************************
+                                    PER-PID
+  ****************************************************************************/
   for(i = 0; i < sortint->num_pids; i++) {
     printf("%-*d ", pid_col_width, sortint->pids[i]);
     printf("%-*.*s", name_col_width, name_col_width, sortint->proc_names[i]);
-    for(n = 0; n < pw_opts.cols_len; n++) {
-      printf(" ");
+    if(pw_opts.debug) {
+      printf(" %-*.*lf", col_width, 2, get_interval_proc_percent_failed(sortint->pid_indices[i]));
+      printf(" %-*.*s", col_width, col_width, "N/A");
+    } else {
+      for(n = 0; n < pw_opts.cols_len; n++) {
+        printf(" ");
 #ifdef TMA
-/*       printf("%-*.*lf", */
-/*               col_width, 2, */
-/*               get_interval_proc_metric(sortint->pid_indices[i], sortint->indices[n])); */
+  /*       printf("%-*.*lf", */
+  /*               col_width, 2, */
+  /*               get_interval_proc_metric(sortint->pid_indices[i], sortint->indices[n])); */
 #else
-      printf("%-*.*lf",
-              col_width, 2,
-              get_interval_proc_percent(sortint->pid_indices[i], pw_opts.cols[n]));
+        printf("%-*.*lf",
+                col_width, 2,
+                get_interval_proc_percent(sortint->pid_indices[i], pw_opts.cols[n]));
 #endif
+      }
     }
     printf(" %-*.*lf", col_width, 2, get_interval_proc_percent_samples(sortint->pid_indices[i]));
+    printf(" %-*.*" PRIu64, col_width, 2, get_interval_proc_num_samples(sortint->pid_indices[i]));
     printf("\n");
   }
 }

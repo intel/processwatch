@@ -81,7 +81,7 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
   bpf_get_current_comm(insn_info->name, sizeof(insn_info->name));
   
   /* Place insn_info in the ringbuf */
-  bpf_ringbuf_submit(insn_info, 0);
+  bpf_ringbuf_submit(insn_info, BPF_RB_NO_WAKEUP);
   
   return 0;
 }

@@ -32,7 +32,7 @@ fi
 export DEBUG=false
 export LEGACY=false
 export TMA=false
-export BUILD_DEPS=true
+export BUILD_DEPS=false
 usage() { echo "Usage: $0 [-l] [-t] [-b] [-d]" 1>&2; exit 1; }
 while getopts ":ltbd" arg; do
   case $arg in
@@ -44,7 +44,7 @@ while getopts ":ltbd" arg; do
       TMA=true
       ;;
     b)
-      BUILD_DEPS=false
+      BUILD_DEPS=true
       ;;
     d)
       DEBUG=true

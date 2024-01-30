@@ -22,8 +22,15 @@ static void update_pid(uint32_t pid, int cat, int insn, char *name) {
   
   /* Store this result in the per-process array */
   interval_index = get_interval_proc_arr_index(pid);
-  results->interval->proc_cat_count[cat][interval_index]++;
-  results->interval->proc_insn_count[insn][interval_index]++;
+  
+  if((cat != -1) && (insn != -1)) {
+    /* Only do this if the decoding worked */
+    results->interval->proc_cat_count[cat][interval_index]++;
+    results->interval->proc_insn_count[insn][interval_index]++;
+  } else {
+    results->interval->proc_num_failed[interval_index]++;
+  }
+  
   results->interval->proc_num_samples[interval_index]++;
   results->interval->pids[interval_index] = pid;
 }
@@ -34,31 +41,43 @@ static void handle_sample(void *ctx, int cpu, void *data, unsigned int data_sz) 
 #else
 static int handle_sample(void *ctx, void *data, size_t data_sz) {
 #endif
+
   struct insn_info *insn_info;
+  ZyanStatus status;
+  int category, mnemonic;
   
   insn_info = data;
   
-  if(ZYAN_SUCCESS(ZydisDecoderDecodeInstruction(&results->decoder,
-                                                ZYAN_NULL,
-                                                insn_info->insn, 15,
-                                                &results->decoded_insn))) {
-    if(pthread_rwlock_wrlock(&results_lock) != 0) {
-      fprintf(stderr, "Failed to grab write lock! Aborting.\n");
-      exit(1);
-    }
+  status = ZydisDecoderDecodeInstruction(&results->decoder,
+                                         ZYAN_NULL,
+                                         insn_info->insn, 15,
+                                         &results->decoded_insn);
+  if(pthread_rwlock_wrlock(&results_lock) != 0) {
+    fprintf(stderr, "Failed to grab write lock! Aborting.\n");
+    exit(1);
+  }
+  
+  category = -1;
+  mnemonic = -1;
+  if(ZYAN_SUCCESS(status)) {
     results->interval->cat_count[results->decoded_insn.meta.category]++;
     results->interval->insn_count[results->decoded_insn.mnemonic]++;
-    update_pid((uint32_t) insn_info->pid,
-               results->decoded_insn.meta.category,
-               results->decoded_insn.mnemonic,
-               insn_info->name);
-    results->interval->num_samples++;
-    results->num_samples++;
-    if(pthread_rwlock_unlock(&results_lock) != 0) {
-      fprintf(stderr, "Failed to unlock the lock! Aborting.\n");
-      exit(1);
-    }
+    category = results->decoded_insn.meta.category;
+    mnemonic = results->decoded_insn.mnemonic;
+  } else {
+    results->interval->num_failed++;
+    results->num_failed++;
   }
+  
+  results->interval->num_samples++;
+  results->num_samples++;
+  update_pid((uint32_t) insn_info->pid, category, mnemonic, insn_info->name);
+  
+  if(pthread_rwlock_unlock(&results_lock) != 0) {
+    fprintf(stderr, "Failed to unlock the lock! Aborting.\n");
+    exit(1);
+  }
+  
 #ifndef INSNPROF_LEGACY_PERF_BUFFER
   return 0;
 #endif
@@ -88,9 +107,11 @@ static void init_results() {
 static int clear_interval_results() {
   int i;
   
-  memset(results->interval->proc_num_samples, 0, results->interval->proc_arr_size * sizeof(int));
+  memset(results->interval->proc_num_samples, 0, results->interval->proc_arr_size * sizeof(uint64_t));
+  memset(results->interval->proc_num_failed, 0, results->interval->proc_arr_size * sizeof(uint64_t));
   memset(results->interval->pids, 0, results->interval->proc_arr_size * sizeof(uint32_t));
   results->interval->num_samples = 0;
+  results->interval->num_failed = 0;
   
 #ifdef TMA
   int n, x;
@@ -150,7 +171,9 @@ static void deinit_results() {
 #else
   free(results->interval->pids);
   free(results->interval->proc_num_samples);
+  free(results->interval->proc_num_failed);
   free(results->interval->proc_percent);
+  free(results->interval->proc_failed_percent);
   for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
     free(results->interval->proc_cat_count[i]);
     free(results->interval->proc_cat_percent[i]);
@@ -162,4 +185,12 @@ static void deinit_results() {
 #endif
   free(results->interval);
   free(results);
+}
+
+static double get_ringbuf_used() {
+  uint64_t size, avail;
+
+  avail = ring__avail_data_size(ring_buffer__ring(bpf_info->rb, 0));
+  size = ring__size(ring_buffer__ring(bpf_info->rb, 0));
+  return ((double) avail) / size;
 }

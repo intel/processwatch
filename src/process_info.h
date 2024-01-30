@@ -40,7 +40,9 @@ static void grow_interval_proc_arrs() {
   
   /* Per-process totals */
   resize_array(results->interval->proc_percent, old_size, new_size, double, 0, n);
-  resize_array(results->interval->proc_num_samples, old_size, new_size, int, 0, n);
+  resize_array(results->interval->proc_failed_percent, old_size, new_size, double, 0, n);
+  resize_array(results->interval->proc_num_samples, old_size, new_size, uint64_t, 0, n);
+  resize_array(results->interval->proc_num_failed, old_size, new_size, uint64_t, 0, n);
   resize_array(results->interval->pids, old_size, new_size, uint32_t, 0, n);
   
 #ifdef TMA

@@ -35,6 +35,7 @@ struct pw_opts_t {
   int cols_len;
   
   char list;
+  char debug;
 };
 
 /**
@@ -126,6 +127,7 @@ typedef struct {
   uint64_t  insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
   double    cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
   double    insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  double    failed_percent;
   
   /* PER PROCESS
      insn = instruction (mnemonic)
@@ -136,16 +138,25 @@ typedef struct {
   double    *proc_cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
   double    *proc_insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
   double    *proc_percent;
+  double    *proc_failed_percent;
   
 #endif
 
-  int       num_samples;
-  int       *proc_num_samples;
+  /* Per-interval counts */
+  uint64_t  num_samples;
+  uint64_t  num_failed;
+  
+  /* Per-interval per-process counts */
+  uint64_t  *proc_num_samples;
+  uint64_t  *proc_num_failed;
 
   /* Keep track of PIDs */
   int       proc_arr_size;
   int       pid_ctr;
   uint32_t  *pids;
+  
+  /* Ringbuffer stats */
+  double ringbuf_used;
 } interval_results_t;
 
 
@@ -163,9 +174,11 @@ typedef struct {
   ZydisDecodedInstruction decoded_insn;
   
   /* Bookkeeping */
-  int       pid_ctr;
-  uint64_t  interval_num;
-  int       num_samples;
+  int      pid_ctr;
+  uint64_t interval_num;
+  uint64_t num_samples;
+  uint64_t num_failed;
+  double   failed_percent;
   
   process_arr_t process_info;
   

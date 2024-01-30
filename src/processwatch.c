@@ -34,6 +34,7 @@ static struct option long_options[] = {
   {"filter",        required_argument, 0, 'f'},
   {"list",          no_argument,       0, 'l'},
   {"btf",           required_argument, 0, 'b'},
+  {"debug",         no_argument,       0, 'd'},
   {"help",          no_argument,       0, 'h'},
   {0,               0,                 0, 0}
 };
@@ -75,6 +76,7 @@ int read_opts(int argc, char **argv) {
   pw_opts.show_mnemonics = 0;
   pw_opts.csv = 0;
   pw_opts.btf_custom_path = NULL;
+  pw_opts.debug = 0;
   
 #ifdef TMA
   pw_opts.sample_period = 10000;
@@ -91,7 +93,7 @@ int read_opts(int argc, char **argv) {
   
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:cp:ms:f:hln:b:",
+    c = getopt_long(argc, argv, "i:cp:ms:f:hln:b:d",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -114,6 +116,7 @@ int read_opts(int argc, char **argv) {
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
         printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
+        printf("  -d          Prints only debug information.\n");
         return -1;
         break;
       case 'b':
@@ -152,6 +155,9 @@ int read_opts(int argc, char **argv) {
         break;
       case 'l':
         pw_opts.list = 1;
+        break;
+      case 'd':
+        pw_opts.debug = 1;
         break;
       case '?':
         return -1;
@@ -275,6 +281,10 @@ void ui_thread_interval(int s) {
 #else
   calculate_interval_percentages();
 #endif
+
+  if(pw_opts.debug) {
+    results->interval->ringbuf_used = get_ringbuf_used();
+  }
 
   if(sorted_interval) {
     free_sorted_interval();
