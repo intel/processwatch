@@ -147,6 +147,35 @@ static int single_tma_event(struct event *e, struct event *leader,
 
 #else
 
+/* Return value: >0: Valid, -1: Error */
+static int get_ibs_op_type(void) {
+  static int type = -1; /* -1 : Unknown, 0: Failed to read first time, >0: Valid */
+  FILE *fp;
+  int ret;
+
+  if (type != -1) {
+    if (!type)
+      return -1;
+    return type;
+  }
+
+  fp = fopen("/sys/bus/event_source/devices/ibs_op/type", "r");
+  if (!fp) {
+    fprintf(stderr, "Failed to find ibs_op// pmu sysfs. [%m]\n");
+    type = 0;
+    return -1;
+  }
+
+  ret = fscanf(fp, "%d", &type);
+  fclose(fp);
+  if (ret != 1) {
+    fprintf(stderr, "Failed to read ibs_op// type. [%m]\n");
+    type = 0;
+    return -1;
+  }
+  return type;
+}
+
 /**
   single_insn_event - Handles a single CPU, PMU, socket event.
   Returns:
@@ -177,6 +206,12 @@ static int single_insn_event(int cpu, int pid) {
   } else if(strncmp(bpf_info->pmu_name, "sapphire_rapids", 7) == 0) {
     attr.type = PERF_TYPE_RAW;
     attr.config = 0x00c0;
+  } else if(strncmp(bpf_info->pmu_name, "ibs_op", 6) == 0) {
+    attr.type = get_ibs_op_type();
+    if (attr.type < 0)
+	    return -1;
+    attr.config = 0x80000;
+    attr.exclude_guest = 0;
   } else {
     attr.type = PERF_TYPE_SOFTWARE;
     attr.config = PERF_COUNT_SW_CPU_CLOCK;
