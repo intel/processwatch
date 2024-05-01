@@ -6,10 +6,51 @@
 
 #include <stdio.h>
 
+void get_vendor(char *vendor) {
+  unsigned int a[4];
+
+  asm (
+    /* %rbx must be preserved. */
+    "mov %%rbx, %%rdi\n"
+    "cpuid\n"
+    "xchg %%rdi, %%rbx\n"
+    : "=a"(a[0]), "=D"(a[1]), "=c"(a[2]), "=d"(a[3])
+    : "a"(0)
+  );
+  strncpy(&vendor[0], (char *)&a[1], 4);
+  strncpy(&vendor[4], (char *)&a[3], 4);
+  strncpy(&vendor[8], (char *)&a[2], 4);
+}
+
+int is_amd_arch(void) {
+  static int amd = -1; /* -1: Unknown, 1: Yes, 0: No */
+  char vendor[13] = {0};
+
+  if (amd != -1)
+    return amd;
+
+  get_vendor(vendor);
+  amd = strcmp(vendor, "AuthenticAMD") ? 0 : 1;
+  return amd;
+}
+
 void get_pmu_string(char *pmu_name) {
   FILE *f;
   size_t retval;
   
+  if (is_amd_arch()) {
+    f = fopen("/sys/bus/event_source/devices/ibs_op", "r");
+    if (!f) {
+      fprintf(stderr, "WARNING: Unable to open '/sys/bus/event_source/devices/ibs_op'. "
+                      "Using software events.\n");
+      strcpy(pmu_name, "invalid");
+      return;
+    }
+    fclose(f);
+    strcpy(pmu_name, "ibs_op");
+    return;
+  }
+
   f = fopen("/sys/devices/cpu/caps/pmu_name", "r");
   if(!f) {
     fprintf(stderr, "WARNING: Unable to open '/sys/devices/cpu/caps/pmu_name'. Using software events.\n");
