@@ -20,11 +20,18 @@ results_t *results = NULL;
 bpf_info_t *bpf_info = NULL;
 pthread_rwlock_t results_lock = PTHREAD_RWLOCK_INITIALIZER;
 
+#ifndef GIT_COMMIT_HASH
+#define GIT_COMMIT_HASH "?"
+#endif
+
 /*******************************************************************************
 *                                    OPTIONS
 *******************************************************************************/
 
 static struct option long_options[] = {
+  {"help",          no_argument,       0, 'h'},
+  {"version",       no_argument,       0, 'v'},
+  {"debug",         no_argument,       0, 'd'},
   {"interval",      required_argument, 0, 'i'},
   {"num-intervals", required_argument, 0, 'n'},
   {"csv",           no_argument,       0, 'c'},
@@ -34,8 +41,6 @@ static struct option long_options[] = {
   {"filter",        required_argument, 0, 'f'},
   {"list",          no_argument,       0, 'l'},
   {"btf",           required_argument, 0, 'b'},
-  {"debug",         no_argument,       0, 'd'},
-  {"help",          no_argument,       0, 'h'},
   {0,               0,                 0, 0}
 };
 
@@ -93,7 +98,7 @@ int read_opts(int argc, char **argv) {
   
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "i:cp:ms:f:hln:b:d",
+    c = getopt_long(argc, argv, "hvdi:cp:ms:f:ln:b:",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -103,11 +108,16 @@ int read_opts(int argc, char **argv) {
       case 0:
         printf("option %s\n", long_options[option_index].name);
         break;
+      case 'v':
+        printf("Version: %s\n", GIT_COMMIT_HASH);
+        return -1;
+        break;
       case 'h':
-        printf("usage: insnprof [options]\n");
+        printf("usage: processwatch [options]\n");
         printf("\n");
         printf("options:\n");
         printf("  -h          Displays this help message.\n");
+        printf("  -v          Displays the version.\n");
         printf("  -i <int>    Prints results every <int> seconds.\n");
         printf("  -n <num>    Prints results for <num> intervals.\n");
         printf("  -c          Prints all results in CSV format to stdout.\n");
@@ -127,6 +137,7 @@ int read_opts(int argc, char **argv) {
         size = strlen(optarg);
         pw_opts.btf_custom_path = calloc(size + 1, sizeof(char));
         strncpy(pw_opts.btf_custom_path, optarg, size);
+        break;
       case 'i':
         /* Length in seconds of an interval */
         pw_opts.interval_time = strtoul(optarg, NULL, 10);
