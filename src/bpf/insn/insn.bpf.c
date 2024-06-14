@@ -73,7 +73,11 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
   u32 pid = pid_tgid >> 32;
   insn_info->pid = pid;
 
+#ifdef ARM
+  retval = bpf_probe_read_user(insn_info->insn, 4, (void *) ctx->regs.pc);
+#else
   retval = bpf_probe_read_user(insn_info->insn, 15, (void *) ctx->regs.ip);
+#endif
   if(retval < 0) {
     bpf_ringbuf_discard(insn_info, BPF_RB_NO_WAKEUP);
     return 1;

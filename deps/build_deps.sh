@@ -15,6 +15,7 @@ BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
 ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
 JEVENTS_SRC_DIR="${DEPS_DIR}/pmu-tools/jevents"
+CAPSTONE_SRC_DIR="${DEPS_DIR}/capstone"
 
 # We export these because they're used by src/build.sh
 export PREFIX="${DEPS_DIR}/install"
@@ -67,7 +68,7 @@ fi
 #                              zydis
 ###################################################################
 
-if [ "${TMA}" = false ]; then
+if [ "${TMA}" = false ] && [ "${ARCH}" != "aarch64" ]; then
   echo "  Compiling zydis..."
   
   mkdir -p "${PREFIX}"
@@ -174,4 +175,26 @@ if [ "${TMA}" = true ]; then
     &>> ${BUILD_LOGS}/jevents.log
   cp ${JEVENTS_SRC_DIR}/*.h ${PREFIX}/include \
     &>> ${BUILD_LOGS}/jevents.log
+fi
+
+###################################################################
+#                            capstone
+###################################################################
+if [ "${ARCH}" == "aarch64" ]; then
+  echo "  Compiling capstone..."
+
+  cd ${CAPSTONE_SRC_DIR}
+
+  make clean &> ${BUILD_LOGS}/capstone.log
+  CAPSTONE_ARCHS="arm aarch64" ./make.sh &> ${BUILD_LOGS}/capstone.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "  Building capstone failed. Please see ${BUILD_LOGS}/capstone.log for more details."
+    exit 1
+  fi
+
+  # Install the capstone library and headers
+  cp libcapstone.a ${PREFIX}/lib/.
+  cp libcapstone.so.5 ${PREFIX}/lib/.
+  cp -r include/* ${PREFIX}/include/
 fi

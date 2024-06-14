@@ -63,17 +63,17 @@ static void grow_interval_proc_arrs() {
 #else
   
   /* CATEGORIES */
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     resize_array(results->interval->proc_cat_count[i], old_size, new_size, uint64_t, 0, n);
     resize_array(results->interval->proc_cat_percent[i], old_size, new_size, double, 0, n);
   }
   
   /* MNEMONICS */
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
     resize_array(results->interval->proc_insn_count[i], old_size, new_size, uint64_t, 0, n);
     resize_array(results->interval->proc_insn_percent[i], old_size, new_size, double, 0, n);
   }
-  
+
 #endif
   
   results->interval->proc_arr_size = new_size;

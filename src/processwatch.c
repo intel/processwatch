@@ -10,7 +10,11 @@
 #include <time.h>
 #include <ctype.h>
 #ifndef TMA
+#ifdef CAPSTONE
+#include <capstone/capstone.h>
+#else
 #include <Zydis/Zydis.h>
+#endif
 #endif
 
 #include "processwatch.h"
@@ -72,7 +76,8 @@ void free_opts() {
 int read_opts(int argc, char **argv) {
   int option_index, i, n, len, max_value;
   size_t size;
-  char c, found;
+  int c;
+  char found;
   const char *name;
 
   pw_opts.interval_time = 2;
@@ -124,7 +129,11 @@ int read_opts(int argc, char **argv) {
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
+#ifdef ARM
+        printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'FPARMv8', 'NEON', 'SVE' and 'SVE2'.\n");
+#else
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
+#endif
         printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
         printf("  -d          Prints only debug information.\n");
         return -1;
@@ -180,18 +189,35 @@ int read_opts(int argc, char **argv) {
   if(pw_opts.list) {
     if(pw_opts.show_mnemonics) {
       printf("Listing all available mnemonics:\n");
-      for(i = 0; i <= ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+      for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
+#ifdef CAPSTONE
+        printf("%s\n", cs_insn_name(handle, i));
+#else
         printf("%s\n", ZydisMnemonicGetString(i));
+#endif
       }
     } else {
       printf("Listing all available categories:\n");
-      for(i = 0; i <= ZYDIS_CATEGORY_MAX_VALUE; i++) {
+      for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
+#ifdef CAPSTONE
+        // Capstone aarch64 groups aren't consecutive :(
+        if (cs_group_name(handle, i) != NULL) printf("%s\n", cs_group_name(handle, i));
+#else
         printf("%s\n", ZydisCategoryGetString(i));
+#endif
       }
     }
     exit(0);
   }
-  
+
+#ifdef ARM
+   default_col_strs = malloc(sizeof(char *) * 4);
+   default_col_strs[0] = strdup("HasFPARMv8");
+   default_col_strs[1] = strdup("HasNEON");
+   default_col_strs[2] = strdup("HasSVE");
+   default_col_strs[3] = strdup("HasSVE2");
+   num_default_col_strs = 4;
+#else
   default_col_strs = malloc(sizeof(char *) * 3);
   default_col_strs[0] = strdup("AVX");
   default_col_strs[1] = strdup("AVX2");
@@ -202,6 +228,7 @@ int read_opts(int argc, char **argv) {
     default_col_strs[3] = strdup("AMX_TILE");
     num_default_col_strs++;
   }
+#endif
   
   if(pw_opts.col_strs == NULL) {
     /* If the user didn't specify -f even once */
@@ -224,6 +251,7 @@ int read_opts(int argc, char **argv) {
       }
     }
   } else {
+#ifndef CAPSTONE
     if(pw_opts.col_strs != default_col_strs) {
       for(i = 0; i < pw_opts.col_strs_len; i++) {
         len = strlen(pw_opts.col_strs[i]);
@@ -232,22 +260,31 @@ int read_opts(int argc, char **argv) {
         }
       }
     }
+#endif
   }
   /* Convert col_strs to an array of the ZydisInstructionCategory or ZydisMnemonic enum. */
   if(pw_opts.show_mnemonics) {
-    max_value = ZYDIS_MNEMONIC_MAX_VALUE;
+    max_value = MNEMONIC_MAX_VALUE;
   } else {
-    max_value = ZYDIS_CATEGORY_MAX_VALUE;
+    max_value = CATEGORY_MAX_VALUE;
   }
   for(i = 0; i < pw_opts.col_strs_len; i++) {
     for(n = 0; n <= max_value; n++) {
       found = 0;
       if(pw_opts.show_mnemonics) {
+#ifdef CAPSTONE
+        name = cs_insn_name(handle, n);
+#else
         name = ZydisMnemonicGetString(n);
+#endif
       } else {
+#ifdef CAPSTONE
+        name = cs_group_name(handle, n);
+#else
         name = ZydisCategoryGetString(n);
+#endif
       }
-      if(strcmp(pw_opts.col_strs[i], name) == 0) {
+      if(name && strcmp(pw_opts.col_strs[i], name) == 0) {
         found = 1;
         pw_opts.cols_len++;
         pw_opts.cols = realloc(pw_opts.cols, sizeof(int) * pw_opts.cols_len);
@@ -447,6 +484,16 @@ int start_ui_thread() {
 int main(int argc, char **argv) {
   int retval;
 
+#ifdef CAPSTONE
+  /* Initialise Capstone, which we use to disassemble the instruction */
+  if (cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle) != CS_ERR_OK) {
+    fprintf(stderr, "Failed to initialise Capstone! Aborting.\n");
+    exit(1);
+  }
+  cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
+  cs_option(handle, CS_OPT_SKIPDATA, CS_OPT_ON);
+#endif
+
   /* Read options */
   retval = read_opts(argc, argv);
   if(retval != 0) {
@@ -482,7 +529,6 @@ int main(int argc, char **argv) {
   
   /* Poll for some new samples */
 #ifndef TMA
-  struct timespec time;
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
   int err;
   while(stopping == 0) {
@@ -493,6 +539,7 @@ int main(int argc, char **argv) {
     }
   }
 #else
+  struct timespec time;
   time.tv_sec = 0;
   time.tv_nsec = 100000000;
   while(stopping == 0) {
