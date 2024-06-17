@@ -21,7 +21,7 @@ fi
 
 # Compile the BPF object code
 echo "  Compiling the BPF program..."
-${CLANG} ${BPF_CFLAGS} -target bpf -D__TARGET_ARCH_x86 \
+${CLANG} ${BPF_CFLAGS} -target bpf \
   -I${DIR} -I${PREFIX}/include -c ${DIR}/insn.bpf.c -o ${DIR}/insn.bpf.o
 
 # Strip the object file (for a smaller filesize)

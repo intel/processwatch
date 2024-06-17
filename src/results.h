@@ -13,27 +13,6 @@
 #endif
 
 #ifndef TMA
-static void update_pid(uint32_t pid, int cat, int insn, char *name) {
-  int interval_index;
-  uint32_t hash;
-  
-  hash = djb2(name);
-  update_process_info(pid, name, hash);
-  
-  /* Store this result in the per-process array */
-  interval_index = get_interval_proc_arr_index(pid);
-  
-  if((cat != -1) && (insn != -1)) {
-    /* Only do this if the decoding worked */
-    results->interval->proc_cat_count[cat][interval_index]++;
-    results->interval->proc_insn_count[insn][interval_index]++;
-  } else {
-    results->interval->proc_num_failed[interval_index]++;
-  }
-  
-  results->interval->proc_num_samples[interval_index]++;
-  results->interval->pids[interval_index] = pid;
-}
 
 /* Only the function signature differs between the perf_buffer and ringbuffer versions */
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
@@ -43,15 +22,26 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
 #endif
 
   struct insn_info *insn_info;
-  ZyanStatus status;
   int category, mnemonic;
-  
+  int interval_index;
+  uint32_t hash;
+#ifdef CAPSTONE 
+  cs_insn *insn;
+  int i, count;
+#else
+  ZyanStatus status;
+#endif
+
   insn_info = data;
-  
+
+#ifdef CAPSTONE 
+  count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
+#else
   status = ZydisDecoderDecodeInstruction(&results->decoder,
                                          ZYAN_NULL,
                                          insn_info->insn, 15,
                                          &results->decoded_insn);
+#endif
   if(pthread_rwlock_wrlock(&results_lock) != 0) {
     fprintf(stderr, "Failed to grab write lock! Aborting.\n");
     exit(1);
@@ -59,20 +49,46 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   
   category = -1;
   mnemonic = -1;
+
+  hash = djb2(insn_info->name);
+  update_process_info(insn_info->pid, insn_info->name, hash);
+
+  /* Store this result in the per-process array */
+  interval_index = get_interval_proc_arr_index(insn_info->pid);
+
+#ifdef CAPSTONE 
+  if(count) {
+    mnemonic = insn[0].id;
+    results->interval->insn_count[mnemonic]++;
+    results->interval->proc_insn_count[mnemonic][interval_index]++;
+
+    // Capstone (LLVM) puts some instructions in 0, 1 or more groups
+    for (i = 0; i < insn[0].detail->groups_count; i++) {
+      category = insn[0].detail->groups[i];
+      results->interval->cat_count[category]++;
+      results->interval->proc_cat_count[category][interval_index]++;
+    }
+    cs_free(insn, count);
+  }
+#else
   if(ZYAN_SUCCESS(status)) {
-    results->interval->cat_count[results->decoded_insn.meta.category]++;
-    results->interval->insn_count[results->decoded_insn.mnemonic]++;
     category = results->decoded_insn.meta.category;
     mnemonic = results->decoded_insn.mnemonic;
-  } else {
+    results->interval->cat_count[category]++;
+    results->interval->insn_count[mnemonic]++;
+  }
+#endif
+  else {
     results->interval->num_failed++;
+    results->interval->proc_num_failed[interval_index]++;
     results->num_failed++;
   }
-  
+
   results->interval->num_samples++;
+  results->interval->proc_num_samples[interval_index]++;
+  results->interval->pids[interval_index] = insn_info->pid;
   results->num_samples++;
-  update_pid((uint32_t) insn_info->pid, category, mnemonic, insn_info->name);
-  
+
   if(pthread_rwlock_unlock(&results_lock) != 0) {
     fprintf(stderr, "Failed to unlock the lock! Aborting.\n");
     exit(1);
@@ -98,9 +114,11 @@ static void init_results() {
   
 #ifdef TMA
 #else
+#ifndef CAPSTONE 
   /* Initialize Zydis, which we use to disassemble instructions */
   ZydisDecoderInit(&results->decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
   ZydisFormatterInit(&results->formatter, ZYDIS_FORMATTER_STYLE_INTEL);
+#endif
 #endif
 }
 
@@ -129,16 +147,16 @@ static int clear_interval_results() {
 
 #else
 
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     memset(results->interval->proc_cat_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
     memset(results->interval->proc_insn_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
   
   /* Per-category or per-instruction arrays */
-  memset(results->interval->cat_count, 0, ZYDIS_CATEGORY_MAX_VALUE * sizeof(uint64_t));
-  memset(results->interval->insn_count, 0, ZYDIS_MNEMONIC_MAX_VALUE * sizeof(uint64_t));
+  memset(results->interval->cat_count, 0, CATEGORY_MAX_VALUE * sizeof(uint64_t));
+  memset(results->interval->insn_count, 0, MNEMONIC_MAX_VALUE * sizeof(uint64_t));
   
 #endif
   
@@ -174,11 +192,11 @@ static void deinit_results() {
   free(results->interval->proc_num_failed);
   free(results->interval->proc_percent);
   free(results->interval->proc_failed_percent);
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     free(results->interval->proc_cat_count[i]);
     free(results->interval->proc_cat_percent[i]);
   }
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
     free(results->interval->proc_insn_count[i]);
     free(results->interval->proc_insn_percent[i]);
   }

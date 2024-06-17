@@ -4,13 +4,23 @@
 #pragma once
 
 #include <errno.h>
+#include <inttypes.h>
+#ifndef ARM
 #include <bpf/libbpf.h>
 #include <bpf/bpf.h>
 #include <linux/bpf.h>
-#include <inttypes.h>
+#endif
 
 #ifdef TMA
 #include "tma_metrics.h"
+#elif CAPSTONE
+// This fixes an issue with the capstone repo re-using the bpf_insn typedef
+#include <capstone/capstone.h>
+#define bpf_insn cs_bpf_insn
+#include <linux/bpf.h>
+#include <bpf/libbpf.h>
+#undef cs_bpf_insn
+csh handle;
 #else
 #include <Zydis/Zydis.h>
 #endif
@@ -123,20 +133,20 @@ typedef struct {
   
 #else
 
-  uint64_t  cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  double    insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  uint64_t  cat_count[CATEGORY_MAX_VALUE];
+  uint64_t  insn_count[MNEMONIC_MAX_VALUE];
+  double    cat_percent[CATEGORY_MAX_VALUE];
+  double    insn_percent[MNEMONIC_MAX_VALUE];
   double    failed_percent;
   
   /* PER PROCESS
      insn = instruction (mnemonic)
      cat = category
      proc = process */
-  uint64_t  *proc_cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  *proc_insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    *proc_cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  double    *proc_insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  uint64_t  *proc_cat_count[CATEGORY_MAX_VALUE];
+  uint64_t  *proc_insn_count[MNEMONIC_MAX_VALUE];
+  double    *proc_cat_percent[CATEGORY_MAX_VALUE];
+  double    *proc_insn_percent[MNEMONIC_MAX_VALUE];
   double    *proc_percent;
   double    *proc_failed_percent;
   
@@ -167,12 +177,13 @@ typedef struct {
   which is cleared each interval.
 **/
 typedef struct {
-
+#ifndef CAPSTONE
   /* ZYDIS DISASSEMBLER */
   ZydisDecoder            decoder;
   ZydisFormatter          formatter;
   ZydisDecodedInstruction decoded_insn;
-  
+#endif
+
   /* Bookkeeping */
   int      pid_ctr;
   uint64_t interval_num;
@@ -194,10 +205,12 @@ extern struct pw_opts_t pw_opts;
 
 /* Reading from BPF and storing the results */
 #include "results.h"
+#ifndef CAPSTONE
 #include "kerninfo.h"
+#include "tma.h"
+#endif
 #include "setup_bpf.h"
 #include "process_info.h"
-#include "tma.h"
 
 /* The UI */
 #include "ui/utils.h"

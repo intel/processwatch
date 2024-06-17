@@ -47,7 +47,7 @@ char *truncate_uint64(uint64_t val, char *str, int size) {
 void update_screen(struct sorted_interval **sortint_arg) {
   int i, n, index;
   process_t *process;
-  
+  char *column_name;
   struct sorted_interval *sortint = *sortint_arg;
   
   /* If the user passes in NULL, initialize and sort.
@@ -99,7 +99,9 @@ void update_screen(struct sorted_interval **sortint_arg) {
     /* Print chosen instruction groups */
     for(i = 0; i < pw_opts.cols_len; i++) {
       printf(" ");
-      printf("%-*.*s", col_width, col_width, get_name(pw_opts.cols[i]));
+      column_name = (char*)get_name(pw_opts.cols[i]);
+      if (!strncmp(column_name, "Has", 3)) column_name += 3;
+      printf("%-*.*s", col_width, col_width, column_name);
     }
   }
   printf(" %-*.*s", col_width, col_width, "%TOTAL");
@@ -129,7 +131,7 @@ void update_screen(struct sorted_interval **sortint_arg) {
     }
   }
   printf(" %-*.*lf", col_width, 2, 100.0);
-  printf(" %-*.*s", col_width, col_width, truncate_uint64(get_interval_num_samples(), tmp_str, 8));
+  printf(" %-*.*" PRIu64, col_width, 2, get_interval_num_samples());
   printf("\n");
 
   /****************************************************************************

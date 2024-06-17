@@ -146,7 +146,7 @@ static int single_tma_event(struct event *e, struct event *leader,
 }
 
 #else
-
+#ifndef ARM
 /* Return value: >0: Valid, -1: Error */
 static int get_ibs_op_type(void) {
   static int type = -1; /* -1 : Unknown, 0: Failed to read first time, >0: Valid */
@@ -175,6 +175,7 @@ static int get_ibs_op_type(void) {
   }
   return type;
 }
+#endif
 
 /**
   single_insn_event - Handles a single CPU, PMU, socket event.
@@ -196,6 +197,10 @@ static int single_insn_event(int cpu, int pid) {
     .size = sizeof(struct perf_event_attr),
   };
   
+#ifdef ARM
+  attr.type = PERF_TYPE_RAW;
+  attr.config = 0x08;
+#else
   /* Program INST_RETIRED.ANY (or equivalent) depending on PMU version */
   if(strncmp(bpf_info->pmu_name, "skylake", 7) == 0) {
     attr.type = PERF_TYPE_RAW;
@@ -216,7 +221,8 @@ static int single_insn_event(int cpu, int pid) {
     attr.type = PERF_TYPE_SOFTWARE;
     attr.config = PERF_COUNT_SW_CPU_CLOCK;
   }
-  
+#endif
+
   /* Attach the event, and handle the BPF linkages. */
   retval = open_and_attach_perf_event(&attr, cpu, pid, -1);
   if(retval == -1) {
@@ -280,8 +286,9 @@ static int init_insn_bpf_info() {
 #endif
   
   bpf_info->nr_cpus = libbpf_num_possible_cpus();
+#ifndef ARM
   get_pmu_string(bpf_info->pmu_name);
-  
+#endif
   return 0;
 }
 
