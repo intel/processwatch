@@ -74,7 +74,7 @@ void free_opts() {
 }
 
 int read_opts(int argc, char **argv) {
-  int option_index, i, n, len, max_value;
+  int option_index, i, n, max_value;
   size_t size;
   int c;
   char found;
@@ -240,28 +240,7 @@ int read_opts(int argc, char **argv) {
       pw_opts.col_strs_len = num_default_col_strs;
     }
   }
-  
-  if(pw_opts.show_mnemonics) {
-    if(pw_opts.col_strs != default_mnem_col_strs) {
-      for(i = 0; i < pw_opts.col_strs_len; i++) {
-        len = strlen(pw_opts.col_strs[i]);
-        for(n = 0; n < len; n++) {
-          pw_opts.col_strs[i][n] = tolower(pw_opts.col_strs[i][n]);
-        }
-      }
-    }
-  } else {
-#ifndef CAPSTONE
-    if(pw_opts.col_strs != default_col_strs) {
-      for(i = 0; i < pw_opts.col_strs_len; i++) {
-        len = strlen(pw_opts.col_strs[i]);
-        for(n = 0; n < len; n++) {
-          pw_opts.col_strs[i][n] = toupper(pw_opts.col_strs[i][n]);
-        }
-      }
-    }
-#endif
-  }
+ 
   /* Convert col_strs to an array of the ZydisInstructionCategory or ZydisMnemonic enum. */
   if(pw_opts.show_mnemonics) {
     max_value = MNEMONIC_MAX_VALUE;
@@ -284,7 +263,7 @@ int read_opts(int argc, char **argv) {
         name = ZydisCategoryGetString(n);
 #endif
       }
-      if(name && strcmp(pw_opts.col_strs[i], name) == 0) {
+      if(name && strncasecmp(pw_opts.col_strs[i], name, strlen(pw_opts.col_strs[i])) == 0) {
         found = 1;
         pw_opts.cols_len++;
         pw_opts.cols = realloc(pw_opts.cols, sizeof(int) * pw_opts.cols_len);
