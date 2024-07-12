@@ -8,18 +8,24 @@
 
 #ifdef TMA
 #include "tma_metrics.h"
-#elif CAPSTONE
-// This fixes an issue with the capstone repo re-using the bpf_insn typedef
+#endif
+
+/* Include Capstone, then libbpf.
+   This fixes a double-define conflict with the bpf_insn identifier. */
 #include <capstone/capstone.h>
 #define bpf_insn cs_bpf_insn
 #include <linux/bpf.h>
 #include <bpf/libbpf.h>
 #undef cs_bpf_insn
 csh handle;
+
+/* Maximums */
+#ifdef ARM
+#define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
+#define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
 #else
-#include <Zydis/Zydis.h>
-#include <bpf/libbpf.h>
-#include <linux/bpf.h>
+#define MNEMONIC_MAX_VALUE X86_INS_ENDING
+#define CATEGORY_MAX_VALUE X86_GRP_ENDING
 #endif
 
 /**
@@ -174,13 +180,6 @@ typedef struct {
   which is cleared each interval.
 **/
 typedef struct {
-#ifndef CAPSTONE
-  /* ZYDIS DISASSEMBLER */
-  ZydisDecoder            decoder;
-  ZydisFormatter          formatter;
-  ZydisDecodedInstruction decoded_insn;
-#endif
-
   /* Bookkeeping */
   int      pid_ctr;
   uint64_t interval_num;
@@ -203,9 +202,6 @@ extern struct pw_opts_t pw_opts;
 /* Reading from BPF and storing the results */
 #include "results.h"
 #include "kerninfo.h"
-#ifndef CAPSTONE
-#include "tma.h"
-#endif
 #include "setup_bpf.h"
 #include "process_info.h"
 

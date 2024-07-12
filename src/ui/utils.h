@@ -45,17 +45,9 @@ double get_interval_proc_metric(int proc_index, int index) {
 
 const char *get_name(int index) {
   if(pw_opts.show_mnemonics) {
-#ifdef CAPSTONE 
     return cs_insn_name(handle, index);
-#else
-    return ZydisMnemonicGetString(index);
-#endif
   } else {
-#ifdef CAPSTONE
     return cs_group_name(handle, index);
-#else
-    return ZydisCategoryGetString(index);
-#endif
   }
 }
 

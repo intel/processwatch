@@ -10,11 +10,7 @@
 #include <time.h>
 #include <ctype.h>
 #ifndef TMA
-#ifdef CAPSTONE
 #include <capstone/capstone.h>
-#else
-#include <Zydis/Zydis.h>
-#endif
 #endif
 
 #include "processwatch.h"
@@ -190,21 +186,13 @@ int read_opts(int argc, char **argv) {
     if(pw_opts.show_mnemonics) {
       printf("Listing all available mnemonics:\n");
       for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
-#ifdef CAPSTONE
         printf("%s\n", cs_insn_name(handle, i));
-#else
-        printf("%s\n", ZydisMnemonicGetString(i));
-#endif
       }
     } else {
       printf("Listing all available categories:\n");
       for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
-#ifdef CAPSTONE
-        // Capstone aarch64 groups aren't consecutive :(
+        /* Capstone aarch64 groups aren't consecutive :( */
         if (cs_group_name(handle, i) != NULL) printf("%s\n", cs_group_name(handle, i));
-#else
-        printf("%s\n", ZydisCategoryGetString(i));
-#endif
       }
     }
     exit(0);
@@ -251,17 +239,9 @@ int read_opts(int argc, char **argv) {
     for(n = 0; n <= max_value; n++) {
       found = 0;
       if(pw_opts.show_mnemonics) {
-#ifdef CAPSTONE
         name = cs_insn_name(handle, n);
-#else
-        name = ZydisMnemonicGetString(n);
-#endif
       } else {
-#ifdef CAPSTONE
         name = cs_group_name(handle, n);
-#else
-        name = ZydisCategoryGetString(n);
-#endif
       }
       if(name && strncasecmp(pw_opts.col_strs[i], name, strlen(pw_opts.col_strs[i])) == 0) {
         found = 1;
@@ -464,7 +444,6 @@ int main(int argc, char **argv) {
   int retval;
   enum cs_err cap_err;
 
-#ifdef CAPSTONE
   /* Initialise Capstone, which we use to disassemble the instruction */
   #ifdef ARM
     cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
@@ -477,7 +456,6 @@ int main(int argc, char **argv) {
   }
   cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
   cs_option(handle, CS_OPT_SKIPDATA, CS_OPT_ON);
-#endif
 
   /* Read options */
   retval = read_opts(argc, argv);

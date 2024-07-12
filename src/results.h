@@ -25,27 +25,17 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   int category, mnemonic;
   int interval_index;
   uint32_t hash;
-#ifdef CAPSTONE 
   cs_insn *insn;
   int i, count;
-#else
-  ZyanStatus status;
-#endif
 
   insn_info = data;
 
-#ifdef CAPSTONE 
   #ifdef ARM
     count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
   #else
     count = cs_disasm(handle, insn_info->insn, 15, 0, 0, &insn);
   #endif
-#else
-  status = ZydisDecoderDecodeInstruction(&results->decoder,
-                                         ZYAN_NULL,
-                                         insn_info->insn, 15,
-                                         &results->decoded_insn);
-#endif
+  
   if(pthread_rwlock_wrlock(&results_lock) != 0) {
     fprintf(stderr, "Failed to grab write lock! Aborting.\n");
     exit(1);
@@ -60,7 +50,6 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   /* Store this result in the per-process array */
   interval_index = get_interval_proc_arr_index(insn_info->pid);
 
-#ifdef CAPSTONE 
   if(count) {
     mnemonic = insn[0].id;
     results->interval->insn_count[mnemonic]++;
@@ -73,16 +62,7 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
       results->interval->proc_cat_count[category][interval_index]++;
     }
     cs_free(insn, count);
-  }
-#else
-  if(ZYAN_SUCCESS(status)) {
-    category = results->decoded_insn.meta.category;
-    mnemonic = results->decoded_insn.mnemonic;
-    results->interval->cat_count[category]++;
-    results->interval->insn_count[mnemonic]++;
-  }
-#endif
-  else {
+  } else {
     results->interval->num_failed++;
     results->interval->proc_num_failed[interval_index]++;
     results->num_failed++;
@@ -115,15 +95,6 @@ static void init_results() {
   
   /* Grow the per-process arrays to the first size class */
   grow_interval_proc_arrs();
-  
-#ifdef TMA
-#else
-#ifndef CAPSTONE 
-  /* Initialize Zydis, which we use to disassemble instructions */
-  ZydisDecoderInit(&results->decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
-  ZydisFormatterInit(&results->formatter, ZYDIS_FORMATTER_STYLE_INTEL);
-#endif
-#endif
 }
 
 static int clear_interval_results() {

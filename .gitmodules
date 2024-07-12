@@ -7,9 +7,6 @@
 [submodule "deps/tinyexpr"]
 	path = deps/tinyexpr
 	url = https://github.com/codeplea/tinyexpr.git
-[submodule "deps/zydis"]
-	path = deps/zydis
-	url = https://github.com/zyantific/zydis.git
 [submodule "deps/capstone"]
 	path = deps/capstone
 	url = https://github.com/capstone-engine/capstone.git
