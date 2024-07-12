@@ -462,10 +462,16 @@ int start_ui_thread() {
 
 int main(int argc, char **argv) {
   int retval;
+  enum cs_err cap_err;
 
 #ifdef CAPSTONE
   /* Initialise Capstone, which we use to disassemble the instruction */
-  if (cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle) != CS_ERR_OK) {
+  #ifdef ARM
+    cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
+  #else
+    cap_err = cs_open(CS_ARCH_X86, CS_MODE_LITTLE_ENDIAN | CS_MODE_64, &handle);
+  #endif
+  if (cap_err != CS_ERR_OK) {
     fprintf(stderr, "Failed to initialise Capstone! Aborting.\n");
     exit(1);
   }

@@ -89,7 +89,7 @@ if [ "${ARCH}" == "aarch64" ]; then
     export PW_CFLAGS="${PW_CFLAGS} -DARM -DCAPSTONE -DMNEMONIC_MAX_VALUE=AArch64_INS_ALIAS_END -DCATEGORY_MAX_VALUE=AArch64_GRP_ENDING"
 else
     export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_x86"
-    export PW_CFLAGS="${PW_CFLAGS} -DMNEMONIC_MAX_VALUE=ZYDIS_MNEMONIC_MAX_VALUE -DCATEGORY_MAX_VALUE=ZYDIS_CATEGORY_MAX_VALUE"
+    export PW_CFLAGS="${PW_CFLAGS} -DCAPSTONE -DMNEMONIC_MAX_VALUE=X86_INS_ENDING -DCATEGORY_MAX_VALUE=X86_GRP_ENDING"
 fi
 
 # Prepare the dependency-building logs
@@ -116,21 +116,8 @@ export PATH="${PREFIX}/bin:${PATH}"
 # libbpf
 export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libbpf.a"
 
-# Disassembler
-if [ "${ARCH}" == "aarch64" ]; then
-  # We use Capstone on aarch64
-  export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libcapstone.a"
-else
-  # Otherwise we default to Zydis
-  if [ "${TMA}" = false ]; then
-    if [ -f "${PREFIX}/lib/libZydis.a" ]; then
-      export ZYDIS_STATIC_LIB="${PREFIX}/lib/libZydis.a"
-    else
-      export ZYDIS_STATIC_LIB="${PREFIX}/lib64/libZydis.a"
-    fi
-    export PW_LDFLAGS="${PW_LDFLAGS} ${ZYDIS_STATIC_LIB}"
-  fi
-fi
+# Disassembler, Capstone
+export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libcapstone.a"
 
 # tinyexpr
 if [ "${TMA}" = true ]; then

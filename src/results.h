@@ -35,7 +35,11 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   insn_info = data;
 
 #ifdef CAPSTONE 
-  count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
+  #ifdef ARM
+    count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
+  #else
+    count = cs_disasm(handle, insn_info->insn, 15, 0, 0, &insn);
+  #endif
 #else
   status = ZydisDecoderDecodeInstruction(&results->decoder,
                                          ZYAN_NULL,

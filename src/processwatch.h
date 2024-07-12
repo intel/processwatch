@@ -5,11 +5,6 @@
 
 #include <errno.h>
 #include <inttypes.h>
-#ifndef ARM
-#include <bpf/libbpf.h>
-#include <bpf/bpf.h>
-#include <linux/bpf.h>
-#endif
 
 #ifdef TMA
 #include "tma_metrics.h"
@@ -23,6 +18,8 @@
 csh handle;
 #else
 #include <Zydis/Zydis.h>
+#include <bpf/libbpf.h>
+#include <linux/bpf.h>
 #endif
 
 /**
@@ -205,8 +202,8 @@ extern struct pw_opts_t pw_opts;
 
 /* Reading from BPF and storing the results */
 #include "results.h"
-#ifndef CAPSTONE
 #include "kerninfo.h"
+#ifndef CAPSTONE
 #include "tma.h"
 #endif
 #include "setup_bpf.h"
