@@ -85,8 +85,8 @@ if [ "${TMA}" = true ]; then
 fi
 
 if [ "${ARCH}" == "aarch64" ]; then
-    export BPF_CFLAGS="${BPF_CFLAGS} -DARM -D__TARGET_ARCH_arm"
-    export PW_CFLAGS="${PW_CFLAGS} -DARM"
+    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_arm"
+    export PW_CFLAGS="${PW_CFLAGS}"
 else
     export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_x86"
     export PW_CFLAGS="${PW_CFLAGS}"
