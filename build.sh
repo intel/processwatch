@@ -100,8 +100,7 @@ if [ "${BUILD_DEPS}" = true ]; then
 fi
 
 cd ${DIR}
-git submodule init
-git submodule update
+git submodule update --init --recursive
 
 ###################################################################
 #                            deps
