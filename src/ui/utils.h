@@ -45,17 +45,17 @@ double get_interval_proc_metric(int proc_index, int index) {
 
 const char *get_name(int index) {
   if(pw_opts.show_mnemonics) {
-    return ZydisMnemonicGetString(index);
+    return cs_insn_name(handle, index);
   } else {
-    return ZydisCategoryGetString(index);
+    return cs_group_name(handle, index);
   }
 }
 
 int get_max_value() {
   if(pw_opts.show_mnemonics) {
-    return ZYDIS_MNEMONIC_MAX_VALUE;
+    return MNEMONIC_MAX_VALUE;
   } else {
-    return ZYDIS_CATEGORY_MAX_VALUE;
+    return CATEGORY_MAX_VALUE;
   }
 }
 
@@ -63,7 +63,7 @@ double get_interval_percent(int index) {
   if(pw_opts.show_mnemonics) {
     return results->interval->insn_percent[index];
   } else {
-    if(index >= ZYDIS_CATEGORY_MAX_VALUE) {
+    if(index >= CATEGORY_MAX_VALUE) {
       fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
       exit(1);
     }
@@ -79,7 +79,7 @@ double get_interval_proc_percent(int proc_index, int index) {
   if(pw_opts.show_mnemonics) {
     return results->interval->proc_insn_percent[index][proc_index];
   } else {
-    if(index >= ZYDIS_CATEGORY_MAX_VALUE) {
+    if(index >= CATEGORY_MAX_VALUE) {
       fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
       exit(1);
     }
@@ -292,7 +292,7 @@ void calculate_interval_percentages() {
                                                    results->interval->num_samples * 100;
   }
   
-  for(i = 0; i < ZYDIS_CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     results->interval->cat_percent[i] = ((double) results->interval->cat_count[i]) /
                                                   results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {
@@ -302,7 +302,7 @@ void calculate_interval_percentages() {
     }
   }
   
-  for(i = 0; i < ZYDIS_MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
     results->interval->insn_percent[i] = ((double) results->interval->insn_count[i]) /
                                                    results->interval->num_samples * 100;
     for(n = 0; n < results->interval->proc_arr_size; n++) {

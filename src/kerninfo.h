@@ -6,6 +6,37 @@
 
 #include <stdio.h>
 
+#ifdef __x86_64__
+
+/* Return value: >0: Valid, -1: Error */
+static int get_ibs_op_type(void) {
+  static int type = -1; /* -1 : Unknown, 0: Failed to read first time, >0: Valid */
+  FILE *fp;
+  int ret;
+
+  if (type != -1) {
+    if (!type)
+      return -1;
+    return type;
+  }
+
+  fp = fopen("/sys/bus/event_source/devices/ibs_op/type", "r");
+  if (!fp) {
+    fprintf(stderr, "Failed to find ibs_op// pmu sysfs. [%m]\n");
+    type = 0;
+    return -1;
+  }
+
+  ret = fscanf(fp, "%d", &type);
+  fclose(fp);
+  if (ret != 1) {
+    fprintf(stderr, "Failed to read ibs_op// type. [%m]\n");
+    type = 0;
+    return -1;
+  }
+  return type;
+}
+
 void get_vendor(char *vendor) {
   unsigned int a[4];
 
@@ -37,7 +68,7 @@ int is_amd_arch(void) {
 void get_pmu_string(char *pmu_name) {
   FILE *f;
   size_t retval;
-  
+
   if (is_amd_arch()) {
     f = fopen("/sys/bus/event_source/devices/ibs_op", "r");
     if (!f) {
@@ -64,7 +95,10 @@ void get_pmu_string(char *pmu_name) {
     return;
   }
   fclose(f);
+  
 }
+
+#endif
 
 #define MINIMUM_ISA_SUPPORT \
     fprintf(stderr, "Failed to parse '/proc/cpuinfo'! Assuming minimum ISA support.\n"); \

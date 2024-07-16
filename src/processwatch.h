@@ -4,15 +4,28 @@
 #pragma once
 
 #include <errno.h>
-#include <bpf/libbpf.h>
-#include <bpf/bpf.h>
-#include <linux/bpf.h>
 #include <inttypes.h>
 
 #ifdef TMA
 #include "tma_metrics.h"
-#else
-#include <Zydis/Zydis.h>
+#endif
+
+/* Include Capstone, then libbpf.
+   This fixes a double-define conflict with the bpf_insn identifier. */
+#include <capstone/capstone.h>
+#define bpf_insn cs_bpf_insn
+#include <linux/bpf.h>
+#include <bpf/libbpf.h>
+#undef cs_bpf_insn
+csh handle;
+
+/* Maximums */
+#ifdef __aarch64__
+#define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
+#define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
+#elif __x86_64__
+#define MNEMONIC_MAX_VALUE X86_INS_ENDING
+#define CATEGORY_MAX_VALUE X86_GRP_ENDING
 #endif
 
 /**
@@ -123,20 +136,20 @@ typedef struct {
   
 #else
 
-  uint64_t  cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  double    insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  uint64_t  cat_count[CATEGORY_MAX_VALUE];
+  uint64_t  insn_count[MNEMONIC_MAX_VALUE];
+  double    cat_percent[CATEGORY_MAX_VALUE];
+  double    insn_percent[MNEMONIC_MAX_VALUE];
   double    failed_percent;
   
   /* PER PROCESS
      insn = instruction (mnemonic)
      cat = category
      proc = process */
-  uint64_t  *proc_cat_count[ZYDIS_CATEGORY_MAX_VALUE];
-  uint64_t  *proc_insn_count[ZYDIS_MNEMONIC_MAX_VALUE];
-  double    *proc_cat_percent[ZYDIS_CATEGORY_MAX_VALUE];
-  double    *proc_insn_percent[ZYDIS_MNEMONIC_MAX_VALUE];
+  uint64_t  *proc_cat_count[CATEGORY_MAX_VALUE];
+  uint64_t  *proc_insn_count[MNEMONIC_MAX_VALUE];
+  double    *proc_cat_percent[CATEGORY_MAX_VALUE];
+  double    *proc_insn_percent[MNEMONIC_MAX_VALUE];
   double    *proc_percent;
   double    *proc_failed_percent;
   
@@ -167,12 +180,6 @@ typedef struct {
   which is cleared each interval.
 **/
 typedef struct {
-
-  /* ZYDIS DISASSEMBLER */
-  ZydisDecoder            decoder;
-  ZydisFormatter          formatter;
-  ZydisDecodedInstruction decoded_insn;
-  
   /* Bookkeeping */
   int      pid_ctr;
   uint64_t interval_num;
@@ -197,7 +204,6 @@ extern struct pw_opts_t pw_opts;
 #include "kerninfo.h"
 #include "setup_bpf.h"
 #include "process_info.h"
-#include "tma.h"
 
 /* The UI */
 #include "ui/utils.h"

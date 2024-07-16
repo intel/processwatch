@@ -60,7 +60,7 @@ struct {
 SEC("perf_event")
 int insn_collect(struct bpf_perf_event_data *ctx) {
   struct insn_info *insn_info;
-  long retval;
+  long retval = 0;
   
   /* Reserve space for this entry */
   insn_info = bpf_ringbuf_reserve(&rb, sizeof(struct insn_info), 0);
@@ -73,7 +73,11 @@ int insn_collect(struct bpf_perf_event_data *ctx) {
   u32 pid = pid_tgid >> 32;
   insn_info->pid = pid;
 
+#ifdef __TARGET_ARCH_arm
+  retval = bpf_probe_read_user(insn_info->insn, 4, (void *) ctx->regs.pc);
+#elif __TARGET_ARCH_x86
   retval = bpf_probe_read_user(insn_info->insn, 15, (void *) ctx->regs.ip);
+#endif
   if(retval < 0) {
     bpf_ringbuf_discard(insn_info, BPF_RB_NO_WAKEUP);
     return 1;

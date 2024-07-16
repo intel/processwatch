@@ -9,6 +9,8 @@
 # then builds the BPF and userspace programs.
 ###################################################################
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+ARCH=$(uname -m)
+export ARCH
 
 # USER-CHANGEABLE OPTIONS
 export CLANG="${CLANG:-clang}"
@@ -28,6 +30,11 @@ if ! command -v ${CMAKE} &> /dev/null; then
   fi
 fi
 
+die () {
+    echo "ERROR: $*. Aborting." >&2
+    exit 1
+}
+
 # Command-line arguments
 export DEBUG=false
 export LEGACY=false
@@ -36,10 +43,10 @@ export BUILD_DEPS=false
 usage() { echo "Usage: $0 [-l] [-t] [-b] [-d]" 1>&2; exit 1; }
 while getopts ":ltbd" arg; do
   case $arg in
-    l)
+    l) [ "$ARCH" == "aarch64" ] && die "Legacy unsupported on Arm"
       LEGACY=true
       ;;
-    t)
+    t) [ "$ARCH" == "aarch64" ] && die "TMA unsupported on Arm"
       # This is an experimental feature that could be enabled in a future version
       TMA=true
       ;;
@@ -77,6 +84,14 @@ if [ "${TMA}" = true ]; then
   export PW_CFLAGS="${PW_CFLAGS} -DTMA"
 fi
 
+if [ "${ARCH}" == "aarch64" ]; then
+    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_arm"
+    export PW_CFLAGS="${PW_CFLAGS}"
+else
+    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_x86"
+    export PW_CFLAGS="${PW_CFLAGS}"
+fi
+
 # Prepare the dependency-building logs
 if [ "${BUILD_DEPS}" = true ]; then
   BUILD_LOGS=${DEPS_DIR}/build_logs
@@ -101,15 +116,8 @@ export PATH="${PREFIX}/bin:${PATH}"
 # libbpf
 export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libbpf.a"
 
-# Zydis
-if [ "${TMA}" = false ]; then
-  if [ -f "${PREFIX}/lib/libZydis.a" ]; then
-    export ZYDIS_STATIC_LIB="${PREFIX}/lib/libZydis.a"
-  else
-    export ZYDIS_STATIC_LIB="${PREFIX}/lib64/libZydis.a"
-  fi
-  export PW_LDFLAGS="${PW_LDFLAGS} ${ZYDIS_STATIC_LIB}"
-fi
+# Disassembler, Capstone
+export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libcapstone.a"
 
 # tinyexpr
 if [ "${TMA}" = true ]; then
@@ -120,7 +128,7 @@ fi
 if [ "${TMA}" = true ]; then
   export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libjevents.a"
 fi
-        
+
 ###################################################################
 #                     Process Watch itself
 ###################################################################

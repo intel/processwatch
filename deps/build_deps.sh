@@ -12,9 +12,9 @@ BUILD_DEPS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 # These are used to compile the dependencies
 DEPS_DIR="${BUILD_DEPS_DIR}"
 BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
-ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
 JEVENTS_SRC_DIR="${DEPS_DIR}/pmu-tools/jevents"
+CAPSTONE_SRC_DIR="${DEPS_DIR}/capstone"
 
 # We export these because they're used by src/build.sh
 export PREFIX="${DEPS_DIR}/install"
@@ -62,75 +62,6 @@ else
   echo "  Using system bpftool."
 fi
 
-
-###################################################################
-#                              zydis
-###################################################################
-
-if [ "${TMA}" = false ]; then
-  echo "  Compiling zydis..."
-  
-  mkdir -p "${PREFIX}"
-  cd ${ZYDIS_SRC_DIR}
-  
-  # Zycore, the only dependency of Zydis
-  cd dependencies/zycore
-  rm -rf build \
-    &>> ${BUILD_LOGS}/zydis.log
-  mkdir build \
-    &>> ${BUILD_LOGS}/zydis.log
-  cd build
-    &>> ${BUILD_LOGS}/zydis.log
-  ${CMAKE} \
-    -DCMAKE_INSTALL_PREFIX=${PREFIX} \
-    .. \
-    &>> ${BUILD_LOGS}/zydis.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "  Compiling Zycore failed. Please check ${BUILD_LOGS}/zydis.log for more details."
-    exit 1
-  fi
-  
-  make \
-    &>> ${BUILD_LOGS}/zydis.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "  Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
-    exit 1
-  fi
-  make install \
-    &>> ${BUILD_LOGS}/zydis.log
-  
-  # Zydis itself
-  cd ${ZYDIS_SRC_DIR}
-  rm -rf build && mkdir build && cd build
-  ${CMAKE} \
-    -DCMAKE_INSTALL_PREFIX=${PREFIX} \
-    -DZYDIS_FEATURE_ENCODER=OFF \
-    -DZYDIS_BUILD_EXAMPLES=OFF \
-    -DZYDIS_BUILD_TOOLS=OFF \
-    -DZYDIS_FEATURE_AVX512=ON \
-    .. \
-    &>> ${BUILD_LOGS}/zydis.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
-    exit 1
-  fi
-    
-  make \
-    &>> ${BUILD_LOGS}/zydis.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
-    exit 1
-  fi
-  make install \
-    &>> ${BUILD_LOGS}/zydis.log
-  
-  cd ${DEPS_DIR}
-fi
-
 ###################################################################
 #                            tinyexpr
 ###################################################################
@@ -175,3 +106,23 @@ if [ "${TMA}" = true ]; then
   cp ${JEVENTS_SRC_DIR}/*.h ${PREFIX}/include \
     &>> ${BUILD_LOGS}/jevents.log
 fi
+
+###################################################################
+#                            capstone
+###################################################################
+echo "  Compiling capstone..."
+
+cd ${CAPSTONE_SRC_DIR}
+
+make clean &> ${BUILD_LOGS}/capstone.log
+CAPSTONE_ARCHS="arm aarch64 x86" ./make.sh &> ${BUILD_LOGS}/capstone.log
+RETVAL=$?
+if [ ${RETVAL} -ne 0 ]; then
+  echo "  Building capstone failed. Please see ${BUILD_LOGS}/capstone.log for more details."
+  exit 1
+fi
+
+# Install the capstone library and headers
+cp libcapstone.a ${PREFIX}/lib/.
+cp libcapstone.so.5 ${PREFIX}/lib/.
+cp -r include/* ${PREFIX}/include/
