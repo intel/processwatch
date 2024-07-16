@@ -20,10 +20,10 @@
 csh handle;
 
 /* Maximums */
-#ifdef ARM
+#ifdef __aarch64__
 #define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
 #define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
-#else
+#elif __x86_64__
 #define MNEMONIC_MAX_VALUE X86_INS_ENDING
 #define CATEGORY_MAX_VALUE X86_GRP_ENDING
 #endif

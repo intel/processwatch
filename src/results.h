@@ -30,9 +30,9 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
 
   insn_info = data;
 
-  #ifdef ARM
+  #ifdef __aarch64__
     count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
-  #else
+  #elif __x86_64__
     count = cs_disasm(handle, insn_info->insn, 15, 0, 0, &insn);
   #endif
   

@@ -125,9 +125,9 @@ int read_opts(int argc, char **argv) {
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
-#ifdef ARM
+#ifdef __aarch64__
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'FPARMv8', 'NEON', 'SVE' and 'SVE2'.\n");
-#else
+#elif __x86_64__
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'AVX', 'AVX2', and 'AVX512'.\n");
 #endif
         printf("  -l          Prints all available categories, or mnemonics if -m is specified.\n");
@@ -198,14 +198,14 @@ int read_opts(int argc, char **argv) {
     exit(0);
   }
 
-#ifdef ARM
+#ifdef __aarch64__
    default_col_strs = malloc(sizeof(char *) * 4);
    default_col_strs[0] = strdup("HasFPARMv8");
    default_col_strs[1] = strdup("HasNEON");
    default_col_strs[2] = strdup("HasSVE");
    default_col_strs[3] = strdup("HasSVE2");
    num_default_col_strs = 4;
-#else
+#elif __x86_64__
   default_col_strs = malloc(sizeof(char *) * 3);
   default_col_strs[0] = strdup("AVX");
   default_col_strs[1] = strdup("AVX2");
@@ -445,9 +445,9 @@ int main(int argc, char **argv) {
   enum cs_err cap_err;
 
   /* Initialise Capstone, which we use to disassemble the instruction */
-  #ifdef ARM
+  #ifdef __aarch64__
     cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
-  #else
+  #elif __x86_64__
     cap_err = cs_open(CS_ARCH_X86, CS_MODE_LITTLE_ENDIAN | CS_MODE_64, &handle);
   #endif
   if (cap_err != CS_ERR_OK) {
