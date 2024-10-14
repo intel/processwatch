@@ -39,6 +39,9 @@ git submodule update
 
 cd ${BPFTOOL_SRC_DIR}
 
+git submodule init
+git submodule update
+
 make clean &> ${BUILD_LOGS}/bpftool.log
 make &>> ${BUILD_LOGS}/bpftool.log
 RETVAL=$?
@@ -113,6 +116,9 @@ fi
 echo "  Compiling capstone..."
 
 cd ${CAPSTONE_SRC_DIR}
+
+git submodule init
+git submodule update
 
 make clean &> ${BUILD_LOGS}/capstone.log
 CAPSTONE_ARCHS="arm aarch64 x86" ./make.sh &> ${BUILD_LOGS}/capstone.log
