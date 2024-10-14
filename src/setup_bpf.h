@@ -11,6 +11,7 @@
 #include <bpf/bpf.h>
 #include <linux/bpf.h>
 #include <sys/mman.h>
+#include <sys/sysinfo.h>
 
 #ifdef TMA
 #include "tma.h"
@@ -78,7 +79,7 @@ static int init_tma_bpf_info() {
     opts.btf_custom_path = pw_opts.btf_custom_path;
   }
   
-  bpf_info->nr_cpus = libbpf_num_possible_cpus();
+  bpf_info->nr_cpus = get_nprocs_conf();
   get_pmu_string(bpf_info->pmu_name);
   if(init_tma() < 0) {
     return -1;
@@ -256,7 +257,7 @@ static int init_insn_bpf_info() {
   }
 #endif
   
-  bpf_info->nr_cpus = libbpf_num_possible_cpus();
+  bpf_info->nr_cpus = get_nprocs_conf();
   return 0;
 }
 
