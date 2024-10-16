@@ -204,12 +204,12 @@ int read_opts(int argc, char **argv) {
   }
 
 #ifdef __aarch64__
-   default_col_strs = malloc(sizeof(char *) * 4);
-   default_col_strs[0] = strdup("HasFPARMv8");
-   default_col_strs[1] = strdup("HasNEON");
-   default_col_strs[2] = strdup("HasSVE");
-   default_col_strs[3] = strdup("HasSVE2");
-   num_default_col_strs = 4;
+  default_col_strs = malloc(sizeof(char *) * 4);
+  default_col_strs[0] = strdup("HasFPARMv8");
+  default_col_strs[1] = strdup("HasNEON");
+  default_col_strs[2] = strdup("HasSVE");
+  default_col_strs[3] = strdup("HasSVE2");
+  num_default_col_strs = 4;
 #elif __x86_64__
   default_col_strs = malloc(sizeof(char *) * 3);
   default_col_strs[0] = strdup("AVX");
@@ -456,8 +456,7 @@ int main(int argc, char **argv) {
 #ifdef __aarch64__
   enum cs_err cap_err;
   /* Initialise Capstone, which we use to disassemble the instruction */
-    cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
-    cap_err = cs_open(CS_ARCH_X86, CS_MODE_LITTLE_ENDIAN | CS_MODE_64, &handle);
+  cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
   if (cap_err != CS_ERR_OK) {
     fprintf(stderr, "Failed to initialise Capstone! Aborting.\n");
     exit(1);
