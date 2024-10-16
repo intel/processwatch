@@ -40,7 +40,7 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
     int count;
     cs_insn *insn;
     count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
-    if(count) {
+    if(count && insn[0].detail) {
       success = 1;
       mnemonic = insn[0].id;
     }
