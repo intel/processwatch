@@ -38,20 +38,15 @@ die () {
 # Command-line arguments
 export DEBUG=false
 export LEGACY=false
-export TMA=false
-export BUILD_DEPS=false
+export BUILD_DEPS=true
 usage() { echo "Usage: $0 [-l] [-t] [-b] [-d]" 1>&2; exit 1; }
 while getopts ":ltbd" arg; do
   case $arg in
     l) [ "$ARCH" == "aarch64" ] && die "Legacy unsupported on Arm"
       LEGACY=true
       ;;
-    t) [ "$ARCH" == "aarch64" ] && die "TMA unsupported on Arm"
-      # This is an experimental feature that could be enabled in a future version
-      TMA=true
-      ;;
     b)
-      BUILD_DEPS=true
+      BUILD_DEPS=false
       ;;
     d)
       DEBUG=true
@@ -80,15 +75,12 @@ if [ "${LEGACY}" = true ]; then
   export BPF_CFLAGS="${BPF_CFLAGS} -DINSNPROF_LEGACY_PERF_BUFFER"
   export PW_CFLAGS="${PW_CFLAGS} -DINSNPROF_LEGACY_PERF_BUFFER"
 fi
-if [ "${TMA}" = true ]; then
-  export PW_CFLAGS="${PW_CFLAGS} -DTMA"
-fi
 
-if [ "${ARCH}" == "aarch64" ]; then
-    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_arm"
+if [ "${ARCH}" == "x86_64" ]; then
+    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_x86"
     export PW_CFLAGS="${PW_CFLAGS}"
 else
-    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_x86"
+    export BPF_CFLAGS="${BPF_CFLAGS} -D__TARGET_ARCH_arm"
     export PW_CFLAGS="${PW_CFLAGS}"
 fi
 
@@ -115,17 +107,17 @@ export PATH="${PREFIX}/bin:${PATH}"
 # libbpf
 export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libbpf.a"
 
-# Disassembler, Capstone
-export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libcapstone.a"
-
-# tinyexpr
-if [ "${TMA}" = true ]; then
-  export PW_LDFLAGS="${PW_LDFLAGS} ${DIR}/src/tinyexpr.o -lm"
-fi
-
-# jevents
-if [ "${TMA}" = true ]; then
-  export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libjevents.a"
+if [ "${ARCH}" == "x86_64" ]; then
+  # Disassembler, Zydis
+  if [ -f "${PREFIX}/lib/libZydis.a" ]; then
+    export ZYDIS_STATIC_LIB="${PREFIX}/lib/libZydis.a"
+  else
+    export ZYDIS_STATIC_LIB="${PREFIX}/lib64/libZydis.a"
+  fi
+  export PW_LDFLAGS="${PW_LDFLAGS} ${ZYDIS_STATIC_LIB}"
+else
+  # Disassembler, Capstone
+  export PW_LDFLAGS="${PW_LDFLAGS} ${PREFIX}/lib/libcapstone.a"
 fi
 
 ###################################################################

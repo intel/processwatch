@@ -23,32 +23,22 @@ uint64_t get_interval_num_samples() {
   return results->interval->num_samples;
 }
 
-#ifdef TMA
-
 const char *get_name(int index) {
-  return bpf_info->tma->metrics[index].shortname;
-}
-
-int get_max_value() {
-  return 0;
-}
-
-double get_interval_metric(int index) {
-  return results->interval->tma_metric[index];
-}
-
-double get_interval_proc_metric(int proc_index, int index) {
-  return results->interval->proc_tma_metric[index][proc_index];
-}
-
-#else
-
-const char *get_name(int index) {
+  
+#ifdef __x86_64__
+  if(pw_opts.show_mnemonics) {
+    return ZydisMnemonicGetString(index);
+  } else {
+    return ZydisCategoryGetString(index);
+  }
+#elif __aarch64__
   if(pw_opts.show_mnemonics) {
     return cs_insn_name(handle, index);
   } else {
     return cs_group_name(handle, index);
   }
+#endif
+
 }
 
 int get_max_value() {
@@ -87,8 +77,6 @@ double get_interval_proc_percent(int proc_index, int index) {
   }
 }
 
-#endif
-
 enum qsort_val_type {
   QSORT_INTERVAL_PID,
   QSORT_INTERVAL_CAT_COUNT,
@@ -105,14 +93,6 @@ enum qsort_val_type {
   *a = *b; \
   *b = t;
 
-#ifdef TMA
-#define get_value(val, val_type, set) \
-  switch(val_type) { \
-    case QSORT_INTERVAL_PID: \
-      set = results->interval->proc_tma_cycles[val]; \
-      break; \
-  }
-#else
 #define get_value(val, val_type, set) \
   switch(val_type) { \
     case QSORT_INTERVAL_PID: \
@@ -135,16 +115,7 @@ enum qsort_val_type {
       exit(1); \
       break; \
   }
-#endif
   
-#ifdef TMA
-#define partition(vals, val_type, low, high, partition_index) \
-  switch(val_type) { \
-    case QSORT_INTERVAL_PID: \
-      partition_index = double_partition(vals, val_type, low, high); \
-      break; \
-  }
-#else
 #define partition(vals, val_type, low, high, partition_index) \
   switch(val_type) { \
     case QSORT_INTERVAL_PID: \
@@ -176,7 +147,6 @@ enum qsort_val_type {
       exit(1); \
       break; \
   }
-#endif
   
 int int_partition(int *vals, int val_type, int low, int high) {
   int pivot, i, j, j_val, pivot_val, tmp;

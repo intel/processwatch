@@ -119,15 +119,9 @@ void update_screen(struct sorted_interval **sortint_arg) {
   } else {
     for(i = 0; i < pw_opts.cols_len; i++) {
       printf(" ");
-#ifdef TMA
-      printf("%-*.*lf",
-              col_width, 2,
-              get_interval_metric(pw_opts.cols[i]));
-#else
       printf("%-*.*lf",
               col_width, 2, /* Two digits of precision */
               get_interval_percent(pw_opts.cols[i]));
-#endif
     }
   }
   printf(" %-*.*lf", col_width, 2, 100.0);
@@ -146,15 +140,9 @@ void update_screen(struct sorted_interval **sortint_arg) {
     } else {
       for(n = 0; n < pw_opts.cols_len; n++) {
         printf(" ");
-#ifdef TMA
-  /*       printf("%-*.*lf", */
-  /*               col_width, 2, */
-  /*               get_interval_proc_metric(sortint->pid_indices[i], sortint->indices[n])); */
-#else
         printf("%-*.*lf",
                 col_width, 2,
                 get_interval_proc_percent(sortint->pid_indices[i], pw_opts.cols[n]));
-#endif
       }
     }
     printf(" %-*.*lf", col_width, 2, get_interval_proc_percent_samples(sortint->pid_indices[i]));

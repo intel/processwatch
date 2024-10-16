@@ -32,11 +32,7 @@ static void print_csv_interval(FILE *csv_file) {
   fprintf(csv_file, "%s,", "ALL");
   fprintf(csv_file, "%s,", "ALL");
   for(i = 0; i < pw_opts.cols_len; i++) {
-#ifdef TMA
-/*     fprintf(csv_file, "%lf", 0); */
-#else
     fprintf(csv_file, "%lf", get_interval_percent(pw_opts.cols[i]));
-#endif
     if(i != (pw_opts.cols_len - 1))  {
       fprintf(csv_file, ",");
     }

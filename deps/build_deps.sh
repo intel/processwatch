@@ -4,8 +4,7 @@
 
 ###################################################################
 #                              NOTE
-#  This is NOT meant to be used standalone. It relies on an
-#  environment variable,"TMA", which is set by build.sh.
+#  This is NOT meant to be used standalone.
 ###################################################################
 BUILD_DEPS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
@@ -14,7 +13,12 @@ DEPS_DIR="${BUILD_DEPS_DIR}"
 BPFTOOL_SRC_DIR="${DEPS_DIR}/bpftool/src"
 TINYEXPR_SRC_DIR="${DEPS_DIR}/tinyexpr"
 JEVENTS_SRC_DIR="${DEPS_DIR}/pmu-tools/jevents"
-CAPSTONE_SRC_DIR="${DEPS_DIR}/capstone"
+
+if [ "${ARCH}" == "x86_64" ]; then
+  ZYDIS_SRC_DIR="${DEPS_DIR}/zydis"
+else
+  CAPSTONE_SRC_DIR="${DEPS_DIR}/capstone"
+fi
 
 # We export these because they're used by src/build.sh
 export PREFIX="${DEPS_DIR}/install"
@@ -63,66 +67,91 @@ else
 fi
 
 ###################################################################
-#                            tinyexpr
-###################################################################
-# tinyexpr is used by the TMA portion to convert event values
-# (for example, the number of cycles or instructions) into metrics
-# via an expression (for example, CPI would be "cycles / instructions."
-if [ "${TMA}" = true ]; then
-  echo "  Compiling tinyexpr..."
-  
-  cd ${TINYEXPR_SRC_DIR}
-  clang -c tinyexpr.c -o tinyexpr.o
-  cp tinyexpr.o ${DEPS_DIR}/src
-  mkdir -p ${PREFIX}/include
-  cp tinyexpr.h ${PREFIX}/include
-  cd ${DEPS_DIR}
-fi
-
-###################################################################
-#                            jevents
-###################################################################
-# Next, compile jevents-- we use this to convert event names to their
-# corresponding perf_event_attr.
-if [ "${TMA}" = true ]; then
-  echo "  Compiling jevents..."
-  
-  make -C ${JEVENTS_SRC_DIR} clean \
-    &>> ${BUILD_LOGS}/jevents.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "Cleaning jevents failed. Please check ${BUILD_LOGS}/jevents.log for more details."
-    exit 1
-  fi
-  make -C ${JEVENTS_SRC_DIR} \
-    &>> ${BUILD_LOGS}/jevents.log
-  RETVAL=$?
-  if [ ${RETVAL} -ne 0 ]; then
-    echo "Compiling jevents failed. Please check ${BUILD_LOGS}/jevents.log for more details."
-    exit 1
-  fi
-  cp ${JEVENTS_SRC_DIR}/libjevents.a ${PREFIX}/lib \
-    &>> ${BUILD_LOGS}/jevents.log
-  cp ${JEVENTS_SRC_DIR}/*.h ${PREFIX}/include \
-    &>> ${BUILD_LOGS}/jevents.log
-fi
-
-###################################################################
 #                            capstone
 ###################################################################
-echo "  Compiling capstone..."
-
-cd ${CAPSTONE_SRC_DIR}
-
-make clean &> ${BUILD_LOGS}/capstone.log
-CAPSTONE_ARCHS="arm aarch64 x86" ./make.sh &> ${BUILD_LOGS}/capstone.log
-RETVAL=$?
-if [ ${RETVAL} -ne 0 ]; then
-  echo "  Building capstone failed. Please see ${BUILD_LOGS}/capstone.log for more details."
-  exit 1
+if [ "${ARCH}" == "aarch64" ]; then
+  echo "  Compiling capstone..."
+  
+  cd ${CAPSTONE_SRC_DIR}
+  
+  make clean &> ${BUILD_LOGS}/capstone.log
+  CAPSTONE_ARCHS="arm aarch64 x86" ./make.sh &> ${BUILD_LOGS}/capstone.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "  Building capstone failed. Please see ${BUILD_LOGS}/capstone.log for more details."
+    exit 1
+  fi
+  
+  # Install the capstone library and headers
+  cp libcapstone.a ${PREFIX}/lib/.
+  cp libcapstone.so.5 ${PREFIX}/lib/.
+  cp -r include/* ${PREFIX}/include/
 fi
 
-# Install the capstone library and headers
-cp libcapstone.a ${PREFIX}/lib/.
-cp libcapstone.so.5 ${PREFIX}/lib/.
-cp -r include/* ${PREFIX}/include/
+###################################################################
+#                              zydis
+###################################################################
+if [ "${ARCH}" == "x86_64" ]; then
+  
+  echo "  Compiling zydis..."
+  
+  mkdir -p "${PREFIX}"
+  cd ${ZYDIS_SRC_DIR}
+  
+  # Zycore, the only dependency of Zydis
+  cd dependencies/zycore
+  rm -rf build \
+    &>> ${BUILD_LOGS}/zydis.log
+  mkdir build \
+    &>> ${BUILD_LOGS}/zydis.log
+  cd build
+    &>> ${BUILD_LOGS}/zydis.log
+  ${CMAKE} \
+    -DCMAKE_INSTALL_PREFIX=${PREFIX} \
+    .. \
+    &>> ${BUILD_LOGS}/zydis.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "  Compiling Zycore failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    exit 1
+  fi
+  
+  make \
+    &>> ${BUILD_LOGS}/zydis.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "  Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    exit 1
+  fi
+  make install \
+    &>> ${BUILD_LOGS}/zydis.log
+  
+  # Zydis itself
+  cd ${ZYDIS_SRC_DIR}
+  rm -rf build && mkdir build && cd build
+  ${CMAKE} \
+    -DCMAKE_INSTALL_PREFIX=${PREFIX} \
+    -DZYDIS_FEATURE_ENCODER=OFF \
+    -DZYDIS_BUILD_EXAMPLES=OFF \
+    -DZYDIS_BUILD_TOOLS=OFF \
+    -DZYDIS_FEATURE_AVX512=ON \
+    .. \
+    &>> ${BUILD_LOGS}/zydis.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    exit 1
+  fi
+    
+  make \
+    &>> ${BUILD_LOGS}/zydis.log
+  RETVAL=$?
+  if [ ${RETVAL} -ne 0 ]; then
+    echo "Compiling Zydis failed. Please check ${BUILD_LOGS}/zydis.log for more details."
+    exit 1
+  fi
+  make install \
+    &>> ${BUILD_LOGS}/zydis.log
+  
+  cd ${DEPS_DIR}
+fi

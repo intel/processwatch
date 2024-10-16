@@ -5,14 +5,7 @@
 
 #include <inttypes.h>
 #include "process_info.h"
-
-#ifdef TMA
-#include "bpf/tma/perf_slots.h"
-#else
 #include "bpf/insn/insn.h"
-#endif
-
-#ifndef TMA
 
 /* Only the function signature differs between the perf_buffer and ringbuffer versions */
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
@@ -22,18 +15,35 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
 #endif
 
   struct insn_info *insn_info;
-  int category, mnemonic;
+  int category, mnemonic, success;
   int interval_index;
   uint32_t hash;
-  cs_insn *insn;
-  int i, count;
 
   insn_info = data;
+  success = 0;
+  
+  category = -1;
+  mnemonic = -1;
 
-  #ifdef __aarch64__
+  #ifdef __x86_64__
+    ZyanStatus status;
+    status = ZydisDecoderDecodeInstruction(&results->decoder,
+                                           ZYAN_NULL,
+                                           insn_info->insn, 15,
+                                           &results->decoded_insn);
+    if(ZYAN_SUCCESS(status)) {
+      success = 1;
+      mnemonic = results->decoded_insn.mnemonic;
+      category = results->decoded_insn.meta.category;
+    }
+  #elif __aarch64__
+    int count;
+    cs_insn *insn;
     count = cs_disasm(handle, insn_info->insn, 4, 0, 0, &insn);
-  #elif __x86_64__
-    count = cs_disasm(handle, insn_info->insn, 15, 0, 0, &insn);
+    if(count) {
+      success = 1;
+      mnemonic = insn[0].id;
+    }
   #endif
   
   if(pthread_rwlock_wrlock(&results_lock) != 0) {
@@ -41,20 +51,21 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
     exit(1);
   }
   
-  category = -1;
-  mnemonic = -1;
-
   hash = djb2(insn_info->name);
   update_process_info(insn_info->pid, insn_info->name, hash);
 
   /* Store this result in the per-process array */
   interval_index = get_interval_proc_arr_index(insn_info->pid);
 
-  if(count) {
-    mnemonic = insn[0].id;
+  if(success) {
     results->interval->insn_count[mnemonic]++;
     results->interval->proc_insn_count[mnemonic][interval_index]++;
 
+#ifdef __x86_64__
+    results->interval->cat_count[results->decoded_insn.meta.category]++;
+    results->interval->proc_cat_count[category][interval_index]++;
+#elif __aarch64__
+    int i;
     // Capstone (LLVM) puts some instructions in 0, 1 or more groups
     for (i = 0; i < insn[0].detail->groups_count; i++) {
       category = insn[0].detail->groups[i];
@@ -62,6 +73,8 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
       results->interval->proc_cat_count[category][interval_index]++;
     }
     cs_free(insn, count);
+#endif
+    
   } else {
     results->interval->num_failed++;
     results->interval->proc_num_failed[interval_index]++;
@@ -83,8 +96,6 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
 #endif
 }
 
-#endif /* TMA */
-
 static void init_results() {
   results = calloc(1, sizeof(results_t));
   if(!results) {
@@ -92,6 +103,11 @@ static void init_results() {
     exit(1);
   }
   results->interval = calloc(1, sizeof(interval_results_t));
+  
+#ifdef __x86_64__
+  ZydisDecoderInit(&results->decoder, ZYDIS_MACHINE_MODE_LONG_64, ZYDIS_STACK_WIDTH_64);
+  ZydisFormatterInit(&results->formatter, ZYDIS_FORMATTER_STYLE_INTEL);
+#endif
   
   /* Grow the per-process arrays to the first size class */
   grow_interval_proc_arrs();
@@ -106,22 +122,6 @@ static int clear_interval_results() {
   results->interval->num_samples = 0;
   results->interval->num_failed = 0;
   
-#ifdef TMA
-  int n, x;
-
-  for(i = 0; i < bpf_info->tma->num_metrics; i++) {
-    for(x = 0; x < bpf_info->nr_cpus; x++) {
-      for(n = 0; n < bpf_info->tma->metrics[i].num_events; n++) {
-        memset(bpf_info->tma->metrics[i].proc_vals[x][n], 0, results->interval->proc_arr_size * sizeof(double));
-      }
-      memset(bpf_info->tma->metrics[i].vals[x], 0, bpf_info->tma->metrics[i].num_events * sizeof(double));
-    }
-  }
-  memset(results->interval->proc_tma_cycles, 0, results->interval->proc_arr_size * sizeof(double));
-  memset(results->interval->proc_tma_instructions, 0, results->interval->proc_arr_size * sizeof(double));
-
-#else
-
   for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     memset(results->interval->proc_cat_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
@@ -132,8 +132,6 @@ static int clear_interval_results() {
   /* Per-category or per-instruction arrays */
   memset(results->interval->cat_count, 0, CATEGORY_MAX_VALUE * sizeof(uint64_t));
   memset(results->interval->insn_count, 0, MNEMONIC_MAX_VALUE * sizeof(uint64_t));
-  
-#endif
   
   results->interval->pid_ctr = 0;
   results->interval_num++;
@@ -160,8 +158,6 @@ static void deinit_results() {
     free(results->process_info.arr[i]);
   }
   
-#ifdef TMA
-#else
   free(results->interval->pids);
   free(results->interval->proc_num_samples);
   free(results->interval->proc_num_failed);
@@ -175,7 +171,6 @@ static void deinit_results() {
     free(results->interval->proc_insn_count[i]);
     free(results->interval->proc_insn_percent[i]);
   }
-#endif
   free(results->interval);
   free(results);
 }

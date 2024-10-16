@@ -6,26 +6,33 @@
 #include <errno.h>
 #include <inttypes.h>
 
-#ifdef TMA
-#include "tma_metrics.h"
-#endif
-
+#ifdef __x86_64__
+#include <Zydis/Zydis.h>
+#elif __aarch64__
 /* Include Capstone, then libbpf.
    This fixes a double-define conflict with the bpf_insn identifier. */
 #include <capstone/capstone.h>
+#endif
+
+#ifdef __aarch64__
 #define bpf_insn cs_bpf_insn
+#endif
+
 #include <linux/bpf.h>
 #include <bpf/libbpf.h>
+
+#ifdef __aarch64__
 #undef cs_bpf_insn
 csh handle;
+#endif
 
 /* Maximums */
-#ifdef __aarch64__
+#ifdef __x86_64__
+#define MNEMONIC_MAX_VALUE ZYDIS_MNEMONIC_MAX_VALUE
+#define CATEGORY_MAX_VALUE ZYDIS_CATEGORY_MAX_VALUE
+#elif __aarch64__ZYDIS_MNEMONIC_MAX_VALUE
 #define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
 #define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
-#elif __x86_64__
-#define MNEMONIC_MAX_VALUE X86_INS_ENDING
-#define CATEGORY_MAX_VALUE X86_GRP_ENDING
 #endif
 
 /**
@@ -59,11 +66,7 @@ struct pw_opts_t {
   data from the BPF program.
 **/
 typedef struct {
-#ifdef TMA
-  struct perf_slots_bpf *obj;
-#else
   struct insn_bpf *obj;
-#endif
 
   /* The BPF programs and links */
   struct bpf_program **prog;
@@ -73,13 +76,8 @@ typedef struct {
   int nr_cpus;
   char pmu_name[32];
   
-#ifdef TMA
-  /* Instead of a ring buffer, TMA uses file descriptors */
-  struct tma_bpf_info_t *tma;
-#else
   struct ring_buffer *rb;
   struct perf_buffer *pb;
-#endif
   
 } bpf_info_t;
 
@@ -128,13 +126,6 @@ typedef struct {
   /* TOTALS
      insn = instruction (mnemonic)
      cat = category */
-#ifdef TMA
-
-  double    tma_metric[NUM_TMA_METRICS];
-  double    *proc_tma_metric[NUM_TMA_METRICS];
-  double    *proc_tma_cycles, *proc_tma_instructions;
-  
-#else
 
   uint64_t  cat_count[CATEGORY_MAX_VALUE];
   uint64_t  insn_count[MNEMONIC_MAX_VALUE];
@@ -153,8 +144,6 @@ typedef struct {
   double    *proc_percent;
   double    *proc_failed_percent;
   
-#endif
-
   /* Per-interval counts */
   uint64_t  num_samples;
   uint64_t  num_failed;
@@ -188,6 +177,12 @@ typedef struct {
   double   failed_percent;
   
   process_arr_t process_info;
+  
+#ifdef __x86_64__
+  ZydisDecoder            decoder;
+  ZydisFormatter          formatter;
+  ZydisDecodedInstruction decoded_insn;
+#endif
   
   /* The interval */
   interval_results_t *interval;

@@ -12,16 +12,8 @@
 #include <linux/bpf.h>
 #include <sys/mman.h>
 
-#ifdef TMA
-#include "tma.h"
-#include "bpf/tma/perf_slots.h"
-#include "bpf/tma/perf_slots.skel.h"
-#include <jevents.h>
-#include <jsession.h>
-#else
 #include "bpf/insn/insn.h"
 #include "bpf/insn/insn.skel.h"
-#endif
 
 /*******************************************************************************
 *                            PERF_EVENT_OPEN WRAPPER
@@ -66,86 +58,6 @@ static int open_and_attach_perf_event(struct perf_event_attr *attr, int cpu, int
   
   return fd;
 }
-
-#ifdef TMA
-
-static int init_tma_bpf_info() {
-  int err;
-  struct bpf_object_open_opts opts = {0};
-  
-  opts.sz = sizeof(struct bpf_object_open_opts);
-  if(pw_opts.btf_custom_path) {
-    opts.btf_custom_path = pw_opts.btf_custom_path;
-  }
-  
-  bpf_info->nr_cpus = libbpf_num_possible_cpus();
-  get_pmu_string(bpf_info->pmu_name);
-  if(init_tma() < 0) {
-    return -1;
-  }
-  
-  bpf_info->obj = perf_slots_bpf__open_opts(&opts);
-  if(!bpf_info->obj) {
-    fprintf(stderr, "ERROR: Failed to get BPF object.\n");
-    fprintf(stderr, "       Most likely, one of two things are true:\n");
-    fprintf(stderr, "       1. You're not root.\n");
-    fprintf(stderr, "       2. You don't have a kernel that supports BTF type information.\n");
-    return -1;
-  }
-  err = perf_slots_bpf__load(bpf_info->obj);
-  if(err) {
-    fprintf(stderr, "Failed to load BPF object!\n");
-    return -1;
-  }
-  
-  bpf_info->prog = (struct bpf_program **) &(bpf_info->obj->progs.perf_event_0);
-  bpf_info->map = (struct bpf_map **) &(bpf_info->obj->maps.perf_slot_map_0);
-  bpf_info->links = NULL;
-  bpf_info->num_links = 0;
-  
-  return 0;
-}
-
-/**
-  single_tma_event - Handles a single CPU, PMU, socket event.
-  Returns:
-    >0 if successful.
-    -1 if there was an issue with perf.
-    -2 if the CPU was offline.
-**/
-static int single_tma_event(struct event *e, struct event *leader,
-                            int cpu, int pid, int group) {
-  int retval, group_fd;
-
-  e->attr.sample_period = pw_opts.sample_period;
-  e->attr.sample_type = PERF_SAMPLE_IDENTIFIER;
-  e->attr.read_format = PERF_FORMAT_TOTAL_TIME_ENABLED | PERF_FORMAT_TOTAL_TIME_RUNNING;
-  e->attr.exclude_guest = 1;
-  e->attr.inherit = 1;
-  e->attr.size = sizeof(struct perf_event_attr);
-
-  /* Figure out group_fd */
-  if(leader) {
-    group_fd = leader->efd[cpu].fd;
-  } else {
-    group_fd = -1;
-  }
-
-  /* Attach the event, and handle the BPF linkages. */
-  retval = open_and_attach_perf_event(&e->attr, cpu, pid, group_fd);
-  if(retval == -1) {
-    fprintf(stderr, "Failed to open perf event: %s\n", e->event);
-    return -1;
-  } else if(retval == -2) {
-    fprintf(stderr, "WARNING: CPU %d is offline.\n", cpu);
-    return -2;
-  }
-  e->efd[cpu].fd = retval;
-  
-  return retval;
-}
-
-#else
 
 /**
   single_insn_event - Handles a single CPU, PMU, socket event.
@@ -259,8 +171,6 @@ static int init_insn_bpf_info() {
   bpf_info->nr_cpus = libbpf_num_possible_cpus();
   return 0;
 }
-
-#endif
   
 
 /**
@@ -273,11 +183,6 @@ static void deinit_bpf_info() {
     return;
   }
   
-#ifdef TMA
-  if(bpf_info->obj) {
-    perf_slots_bpf__destroy(bpf_info->obj);
-  }
-#else
   if(bpf_info->obj) {
     insn_bpf__destroy(bpf_info->obj);
   }
@@ -290,7 +195,6 @@ static void deinit_bpf_info() {
     ring_buffer__free(bpf_info->rb);
   }
 #endif
-#endif
   
   if(bpf_info->links) {
     for(i = 0; i < bpf_info->num_links; i++) {
@@ -300,107 +204,6 @@ static void deinit_bpf_info() {
   }
   free(bpf_info);
 }
-
-#ifdef TMA
-
-#define MAYBE_LEFTOVER(slot) \
-  if(slot >= MAX_PERF_EVENTS) { \
-    leftover_events++; \
-    continue; \
-  }
-
-#define INCREMENT_SLOT() \
-  slot++; \
-  bpf_info->prog++; \
-  bpf_info->map++;
-  
-#define ADD_PERF_PTR(fd) \
-  event_bpf_info->num_perf_ptrs++; \
-  event_bpf_info->perf_ptrs = realloc(event_bpf_info->perf_ptrs, \
-                                      sizeof(struct perf_event_mmap_page *) * event_bpf_info->num_perf_ptrs); \
-  event_bpf_info->perf_ptrs[event_bpf_info->num_perf_ptrs - 1] = \
-    mmap(NULL, sysconf(_SC_PAGESIZE), PROT_READ, MAP_SHARED, fd, 0); \
-  if(event_bpf_info->perf_ptrs[event_bpf_info->num_perf_ptrs - 1] == MAP_FAILED) { \
-    fprintf(stderr, "Failed to mmap room for perf metadata. Aborting.\n"); \
-    return -3; \
-  }
-
-static int program_events(int pid) {
-  int i, n, slot, group, leftover_events,
-      cpu, socket, retval;
-  struct event *e, *leader;
-  struct eventlist *el;
-  struct tma_event_bpf_info_t *event_bpf_info;
-  
-  if(init_tma_bpf_info() == -1) {
-    return -1;
-  }
-  
-  /* Iterate over the groups of events */
-  leftover_events = 0;
-  slot = 0;
-  group = 0;
-  leader = NULL;
-  el = bpf_info->tma->el;
-  n = 0;
-  for(e = el->eventlist; e; e = e->next) {
-    
-    event_bpf_info = &(bpf_info->tma->events[n]);
-    
-    MAYBE_LEFTOVER(slot);
-
-    /* Call single_event with the correct number of CPUs */
-    if(e->uncore) {
-      for(socket = 0; socket < el->num_sockets; socket++) {
-        for(cpu = 0; cpu < el->num_cpus; cpu++) {
-          e->efd[cpu].fd = -1;
-        }
-        cpu = el->socket_cpus[socket];
-        retval = single_tma_event(e, leader, cpu, pid, group);
-        if(retval < 0) {
-          return -1;
-        }
-        ADD_PERF_PTR(retval);
-      }
-    } else {
-      for(cpu = 0; cpu < el->num_cpus; cpu++) {
-        retval = single_tma_event(e, leader, cpu, pid, group);
-        if(retval < 0) {
-          return -1;
-        }
-        ADD_PERF_PTR(retval);
-      }
-    }
-    
-    /* Add the file descriptor of the BPF map to the array.
-        We'll use this to read the value later. */
-    event_bpf_info->num_map_fds++;
-    event_bpf_info->map_fds = realloc(event_bpf_info->map_fds,
-                                      sizeof(int) * event_bpf_info->num_map_fds);
-    event_bpf_info->map_fds[event_bpf_info->num_map_fds - 1] = bpf_map__fd(*(bpf_info->map));
-    
-    INCREMENT_SLOT();
-
-    /* Increment to the next group */
-    if(e->group_leader) {
-      leader = e;
-    }
-    if(e->end_group) {
-      leader = NULL;
-      group++;
-    }
-    n++;
-  }
-
-  if(leftover_events) {
-    fprintf(stderr, "WARNING: %d events did not have available slots to occupy.\n", leftover_events);
-    return -1;
-  }
-  
-  return 0;
-}
-
-#else /* TMA */
 
 static int program_events(int pid) {
   int retval, cpu;
@@ -426,5 +229,3 @@ static int program_events(int pid) {
   
   return retval;
 }
-
-#endif

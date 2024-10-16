@@ -45,23 +45,6 @@ static void grow_interval_proc_arrs() {
   resize_array(results->interval->proc_num_failed, old_size, new_size, uint64_t, 0, n);
   resize_array(results->interval->pids, old_size, new_size, uint32_t, 0, n);
   
-#ifdef TMA
-  int x, y;
-
-  resize_array(results->interval->proc_tma_cycles, old_size, new_size, double, 0, n);
-  resize_array(results->interval->proc_tma_instructions, old_size, new_size, double, 0, n);
-  for(i = 0; i < bpf_info->tma->num_metrics; i++) {
-    for(y = 0; y < bpf_info->nr_cpus; y++) {
-      for(x = 0; x < bpf_info->tma->metrics[i].num_events; x++) {
-        resize_array(bpf_info->tma->metrics[i].proc_vals[y][x], old_size, new_size, double, 0, n);
-      }
-      resize_array(bpf_info->tma->metrics[i].proc_expr[y], old_size, new_size, te_expr *, NULL, n);
-    }
-    resize_array(results->interval->proc_tma_metric[i], old_size, new_size, double, 0, n);
-  }
-
-#else
-  
   /* CATEGORIES */
   for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
     resize_array(results->interval->proc_cat_count[i], old_size, new_size, uint64_t, 0, n);
@@ -73,8 +56,6 @@ static void grow_interval_proc_arrs() {
     resize_array(results->interval->proc_insn_count[i], old_size, new_size, uint64_t, 0, n);
     resize_array(results->interval->proc_insn_percent[i], old_size, new_size, double, 0, n);
   }
-
-#endif
   
   results->interval->proc_arr_size = new_size;
   

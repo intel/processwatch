@@ -9,8 +9,10 @@
 #include <pthread.h>
 #include <time.h>
 #include <ctype.h>
-#ifndef TMA
+#ifdef __aarch64__
 #include <capstone/capstone.h>
+#elif __x86_64__
+#include <Zydis/Zydis.h>
 #endif
 
 #include "processwatch.h"
@@ -83,12 +85,7 @@ int read_opts(int argc, char **argv) {
   pw_opts.csv = 0;
   pw_opts.btf_custom_path = NULL;
   pw_opts.debug = 0;
-  
-#ifdef TMA
   pw_opts.sample_period = 10000;
-#else
-  pw_opts.sample_period = 10000;
-#endif
 
   /* Column filters */
   pw_opts.col_strs = NULL;
@@ -186,13 +183,21 @@ int read_opts(int argc, char **argv) {
     if(pw_opts.show_mnemonics) {
       printf("Listing all available mnemonics:\n");
       for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
+#ifdef __aarch64__
         printf("%s\n", cs_insn_name(handle, i));
+#elif __x86_64__
+        printf("%s\n", ZydisMnemonicGetString(i));
+#endif
       }
     } else {
       printf("Listing all available categories:\n");
       for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
+#ifdef __aarch64__
         /* Capstone aarch64 groups aren't consecutive :( */
         if (cs_group_name(handle, i) != NULL) printf("%s\n", cs_group_name(handle, i));
+#elif __x86_64__
+        printf("%s\n", ZydisCategoryGetString(i));
+#endif
       }
     }
     exit(0);
@@ -239,9 +244,18 @@ int read_opts(int argc, char **argv) {
     for(n = 0; n <= max_value; n++) {
       found = 0;
       if(pw_opts.show_mnemonics) {
+
+#ifdef __aarch64__
         name = cs_insn_name(handle, n);
+#elif __x86_64__
+        name = ZydisMnemonicGetString(n);
+#endif
       } else {
+#ifdef __aarch64__
         name = cs_group_name(handle, n);
+#elif __x86_64__
+        name = ZydisCategoryGetString(n);
+#endif
       }
       if(name && strncasecmp(pw_opts.col_strs[i], name, strlen(pw_opts.col_strs[i])) == 0) {
         found = 1;
@@ -283,11 +297,7 @@ void ui_thread_interval(int s) {
     exit(1);
   }
   
-#ifdef TMA
-  update_tma_metrics();
-#else
   calculate_interval_percentages();
-#endif
 
   if(pw_opts.debug) {
     results->interval->ringbuf_used = get_ringbuf_used();
@@ -442,20 +452,19 @@ int start_ui_thread() {
 
 int main(int argc, char **argv) {
   int retval;
-  enum cs_err cap_err;
 
+#ifdef __aarch64__
+  enum cs_err cap_err;
   /* Initialise Capstone, which we use to disassemble the instruction */
-  #ifdef __aarch64__
     cap_err = cs_open(CS_ARCH_AARCH64, CS_MODE_ARM, &handle);
-  #elif __x86_64__
     cap_err = cs_open(CS_ARCH_X86, CS_MODE_LITTLE_ENDIAN | CS_MODE_64, &handle);
-  #endif
   if (cap_err != CS_ERR_OK) {
     fprintf(stderr, "Failed to initialise Capstone! Aborting.\n");
     exit(1);
   }
   cs_option(handle, CS_OPT_DETAIL, CS_OPT_ON);
   cs_option(handle, CS_OPT_SKIPDATA, CS_OPT_ON);
+#endif
 
   /* Read options */
   retval = read_opts(argc, argv);
@@ -491,7 +500,6 @@ int main(int argc, char **argv) {
   }
   
   /* Poll for some new samples */
-#ifndef TMA
 #ifdef INSNPROF_LEGACY_PERF_BUFFER
   int err;
   while(stopping == 0) {
@@ -509,7 +517,6 @@ int main(int argc, char **argv) {
     ring_buffer__consume(bpf_info->rb);
     nanosleep(&time, NULL);
   }
-#endif
 #endif
 
   /* Send the stop signal to the profiling thread,
