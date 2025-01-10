@@ -28,6 +28,10 @@ const char *get_name(int index) {
 #ifdef __x86_64__
   if(pw_opts.show_mnemonics) {
     return ZydisMnemonicGetString(index);
+#ifdef __x86_64__
+  } else if(pw_opts.show_extensions) {
+    return ZydisISAExtGetString(index);
+#endif
   } else {
     return ZydisCategoryGetString(index);
   }
@@ -44,6 +48,10 @@ const char *get_name(int index) {
 int get_max_value() {
   if(pw_opts.show_mnemonics) {
     return MNEMONIC_MAX_VALUE;
+#ifdef __x86_64__
+  } else if(pw_opts.show_extensions) {
+    return EXTENSION_MAX_VALUE;
+#endif
   } else {
     return CATEGORY_MAX_VALUE;
   }
@@ -52,6 +60,14 @@ int get_max_value() {
 double get_interval_percent(int index) {
   if(pw_opts.show_mnemonics) {
     return results->interval->insn_percent[index];
+#ifdef __x86_64__
+  } else if(pw_opts.show_extensions) {
+    if(index >= EXTENSION_MAX_VALUE) {
+      fprintf(stderr, "Tried to access a per-interval extension percent that doesn't exist. Aborting.\n");
+      exit(1);
+    }
+    return results->interval->ext_percent[index];
+#endif
   } else {
     if(index >= CATEGORY_MAX_VALUE) {
       fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
@@ -68,6 +84,14 @@ double get_interval_failed_percent() {
 double get_interval_proc_percent(int proc_index, int index) {
   if(pw_opts.show_mnemonics) {
     return results->interval->proc_insn_percent[index][proc_index];
+#ifdef __x86_64__
+  } else if(pw_opts.show_extensions) {
+    if(index >= EXTENSION_MAX_VALUE) {
+      fprintf(stderr, "Tried to access a per-interval extension percent that doesn't exist. Aborting.\n");
+      exit(1);
+    }
+    return results->interval->proc_ext_percent[index][proc_index];
+#endif
   } else {
     if(index >= CATEGORY_MAX_VALUE) {
       fprintf(stderr, "Tried to access a per-interval category percent that doesn't exist. Aborting.\n");
@@ -81,10 +105,13 @@ enum qsort_val_type {
   QSORT_INTERVAL_PID,
   QSORT_INTERVAL_CAT_COUNT,
   QSORT_INTERVAL_CAT_PERCENT,
+  QSORT_INTERVAL_EXT_COUNT,
+  QSORT_INTERVAL_EXT_PERCENT,
   QSORT_INTERVAL_INSN_COUNT,
   QSORT_INTERVAL_INSN_PERCENT,
   QSORT_PID,
   QSORT_CAT_PERCENT,
+  QSORT_EXT_PERCENT,
   QSORT_INSN_PERCENT
 };
 
@@ -103,6 +130,12 @@ enum qsort_val_type {
       break; \
     case QSORT_INTERVAL_CAT_PERCENT: \
       set = results->interval->cat_percent[val]; \
+      break; \
+    case QSORT_INTERVAL_EXT_COUNT: \
+      set = results->interval->ext_count[val]; \
+      break; \
+    case QSORT_INTERVAL_EXT_PERCENT: \
+      set = results->interval->ext_percent[val]; \
       break; \
     case QSORT_INTERVAL_INSN_COUNT: \
       set = results->interval->insn_count[val]; \
@@ -127,6 +160,12 @@ enum qsort_val_type {
     case QSORT_INTERVAL_CAT_PERCENT: \
       partition_index = double_partition(vals, val_type, low, high); \
       break; \
+    case QSORT_INTERVAL_EXT_COUNT: \
+      partition_index = int_partition(vals, val_type, low, high); \
+      break; \
+    case QSORT_INTERVAL_EXT_PERCENT: \
+      partition_index = double_partition(vals, val_type, low, high); \
+      break; \
     case QSORT_INTERVAL_INSN_COUNT: \
       partition_index = int_partition(vals, val_type, low, high); \
       break; \
@@ -137,6 +176,9 @@ enum qsort_val_type {
       partition_index = int_partition(vals, val_type, low, high); \
       break; \
     case QSORT_CAT_PERCENT: \
+      partition_index = double_partition(vals, val_type, low, high); \
+      break; \
+    case QSORT_EXT_PERCENT: \
       partition_index = double_partition(vals, val_type, low, high); \
       break; \
     case QSORT_INSN_PERCENT: \
@@ -281,4 +323,16 @@ void calculate_interval_percentages() {
                                                              results->interval->proc_num_samples[n] * 100;
     }
   }
+  
+#ifdef __x86_64__
+  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+    results->interval->ext_percent[i] = ((double) results->interval->ext_count[i]) /
+                                                  results->interval->num_samples * 100;
+    for(n = 0; n < results->interval->proc_arr_size; n++) {
+      if(!(results->interval->proc_num_samples[n])) continue;
+      results->interval->proc_ext_percent[i][n] = ((double) results->interval->proc_ext_count[i][n]) /
+                                                            results->interval->proc_num_samples[n] * 100;
+    }
+  }
+#endif
 }

@@ -39,6 +39,7 @@ static struct option long_options[] = {
   {"csv",           no_argument,       0, 'c'},
   {"pid",           required_argument, 0, 'p'},
   {"mnemonics",     no_argument,       0, 'm'},
+  {"extensions",    no_argument,       0, 'e'},
   {"sample-period", required_argument, 0, 's'},
   {"filter",        required_argument, 0, 'f'},
   {"list",          no_argument,       0, 'l'},
@@ -47,23 +48,56 @@ static struct option long_options[] = {
 };
 
 struct pw_opts_t pw_opts;
-static int num_default_col_strs = 0;
-static char **default_col_strs = NULL;
-static char *default_mnem_col_strs[1] = {
-  "vrcp14pd"
+
+#ifdef __aarch64__
+
+#define NUM_DEFAULT_COL_STRS 4
+#define NUM_DEFAULT_MNEM_COL_STRS 0
+static int num_default_col_strs = NUM_DEFAULT_COL_STRS;
+static int num_default_mnem_col_strs = NUM_DEFAULT_MNEM_COL_STRS;
+static char *default_col_strs[NUM_DEFAULT_COL_STRS] = {
+  "HasFPARMv8",
+  "HasNEON",
+  "HasSVE",
+  "HasSVE2"
 };
+static char *default_mnem_col_strs[NUM_DEFAULT_MNEM_COL_STRS] = {
+};
+static char *default_ext_col_strs = NULL;
+
+#elif __x86_64__
+  
+#define NUM_DEFAULT_COL_STRS 4
+#define NUM_DEFAULT_MNEM_COL_STRS 0
+#define NUM_DEFAULT_EXT_COL_STRS 6
+static int num_default_col_strs = NUM_DEFAULT_COL_STRS;
+static int num_default_mnem_col_strs = NUM_DEFAULT_MNEM_COL_STRS;
+static int num_default_ext_col_strs = NUM_DEFAULT_EXT_COL_STRS;
+static char *default_col_strs[NUM_DEFAULT_COL_STRS] = {
+  "AVX",
+  "AVX2",
+  "AVX512",
+  "AMX_TILE"
+};
+static char *default_mnem_col_strs[NUM_DEFAULT_MNEM_COL_STRS] = {
+};
+static char *default_ext_col_strs[NUM_DEFAULT_EXT_COL_STRS] = {
+  "BASE",
+  "AVX512EVEX",
+  "AVX512VEX",
+  "AMX_BF16",
+  "AMX_INT8",
+  "AMX_TILE"
+};
+
+#endif
 
 void free_opts() {
   int i;
   
-  if(pw_opts.col_strs != default_col_strs) {
-    for(i = 0; i < num_default_col_strs; i++) {
-      free(default_col_strs[i]);
-    }
-    free(default_col_strs);
-  }
   if((pw_opts.col_strs != default_col_strs) &&
-     (pw_opts.col_strs != default_mnem_col_strs)) {
+     (pw_opts.col_strs != default_mnem_col_strs) &&
+     (pw_opts.col_strs != default_ext_col_strs)) {
     for(i = 0; i < pw_opts.col_strs_len; i++) {
       free(pw_opts.col_strs[i]);
     }
@@ -82,6 +116,7 @@ int read_opts(int argc, char **argv) {
   pw_opts.num_intervals = 0;
   pw_opts.pid = -1;
   pw_opts.show_mnemonics = 0;
+  pw_opts.show_extensions = 0;
   pw_opts.csv = 0;
   pw_opts.btf_custom_path = NULL;
   pw_opts.debug = 0;
@@ -96,7 +131,7 @@ int read_opts(int argc, char **argv) {
   
   while(1) {
     option_index = 0;
-    c = getopt_long(argc, argv, "hvdi:cp:ms:f:ln:b:",
+    c = getopt_long(argc, argv, "hvdi:cp:ms:f:ln:b:e",
                     long_options, &option_index);
     if(c == -1) {
       break;
@@ -121,6 +156,9 @@ int read_opts(int argc, char **argv) {
         printf("  -c          Prints all results in CSV format to stdout.\n");
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
+#ifdef __x86_64__
+        printf("  -e          Displays instruction extensions, instead of categories. Only for x86.\n");
+#endif
         printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
 #ifdef __aarch64__
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'FPARMv8', 'NEON', 'SVE' and 'SVE2'.\n");
@@ -157,6 +195,11 @@ int read_opts(int argc, char **argv) {
       case 'm':
         pw_opts.show_mnemonics = 1;
         break;
+#ifdef __x86_64__
+      case 'e':
+        pw_opts.show_extensions = 1;
+        break;
+#endif
       case 's':
         pw_opts.sample_period = strtoul(optarg, NULL, 10);
         break;
@@ -189,6 +232,13 @@ int read_opts(int argc, char **argv) {
         printf("%s\n", ZydisMnemonicGetString(i));
 #endif
       }
+#ifdef __x86_64__
+    } else if(pw_opts.show_extensions) {
+      printf("Listing all available extensions:\n");
+      for(i = 0; i <= EXTENSION_MAX_VALUE; i++) {
+        printf("%s\n", ZydisISAExtGetString(i));
+      }
+#endif
     } else {
       printf("Listing all available categories:\n");
       for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
@@ -202,32 +252,17 @@ int read_opts(int argc, char **argv) {
     }
     exit(0);
   }
-
-#ifdef __aarch64__
-  default_col_strs = malloc(sizeof(char *) * 4);
-  default_col_strs[0] = strdup("HasFPARMv8");
-  default_col_strs[1] = strdup("HasNEON");
-  default_col_strs[2] = strdup("HasSVE");
-  default_col_strs[3] = strdup("HasSVE2");
-  num_default_col_strs = 4;
-#elif __x86_64__
-  default_col_strs = malloc(sizeof(char *) * 3);
-  default_col_strs[0] = strdup("AVX");
-  default_col_strs[1] = strdup("AVX2");
-  default_col_strs[2] = strdup("AVX512");
-  num_default_col_strs = 3;
-  if(supports_amx_tile()) {
-    default_col_strs = realloc(default_col_strs, sizeof(char *) * 4);
-    default_col_strs[3] = strdup("AMX_TILE");
-    num_default_col_strs++;
-  }
-#endif
   
   if(pw_opts.col_strs == NULL) {
     /* If the user didn't specify -f even once */
     if(pw_opts.show_mnemonics) {
       pw_opts.col_strs = default_mnem_col_strs;
-      pw_opts.col_strs_len = 1;
+      pw_opts.col_strs_len = num_default_mnem_col_strs;
+#ifdef __x86_64__
+    } else if(pw_opts.show_extensions) {
+      pw_opts.col_strs = default_ext_col_strs;
+      pw_opts.col_strs_len = num_default_ext_col_strs;
+#endif
     } else {
       pw_opts.col_strs = default_col_strs;
       pw_opts.col_strs_len = num_default_col_strs;
@@ -237,6 +272,10 @@ int read_opts(int argc, char **argv) {
   /* Convert col_strs to an array of the ZydisInstructionCategory or ZydisMnemonic enum. */
   if(pw_opts.show_mnemonics) {
     max_value = MNEMONIC_MAX_VALUE;
+#ifdef __x86_64__
+  } else if(pw_opts.show_extensions) {
+    max_value = EXTENSION_MAX_VALUE;
+#endif
   } else {
     max_value = CATEGORY_MAX_VALUE;
   }
@@ -249,6 +288,8 @@ int read_opts(int argc, char **argv) {
         name = cs_insn_name(handle, n);
 #elif __x86_64__
         name = ZydisMnemonicGetString(n);
+      } else if(pw_opts.show_extensions) {
+        name = ZydisISAExtGetString(n);
 #endif
       } else {
 #ifdef __aarch64__
@@ -266,7 +307,7 @@ int read_opts(int argc, char **argv) {
       }
     }
     if(!found) {
-      fprintf(stderr, "WARNING: Didn't recognize instruction category: %s\n", pw_opts.col_strs[i]);
+      fprintf(stderr, "WARNING: Didn't recognize instruction mnemonic/category/extension: %s\n", pw_opts.col_strs[i]);
     }
   }
 

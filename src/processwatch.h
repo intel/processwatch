@@ -30,6 +30,7 @@ csh handle;
 #ifdef __x86_64__
 #define MNEMONIC_MAX_VALUE ZYDIS_MNEMONIC_MAX_VALUE
 #define CATEGORY_MAX_VALUE ZYDIS_CATEGORY_MAX_VALUE
+#define EXTENSION_MAX_VALUE ZYDIS_ISA_EXT_MAX_VALUE
 #elif __aarch64__
 #define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
 #define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
@@ -45,6 +46,7 @@ struct pw_opts_t {
   unsigned int interval_time, num_intervals;
   int pid;
   unsigned char show_mnemonics : 1;
+  unsigned char show_extensions : 1;
   unsigned int sample_period;
   
   char *btf_custom_path;
@@ -123,9 +125,12 @@ typedef struct {
   as we see more processes. Gets updated by `results.h`.
 **/
 typedef struct {
-  /* TOTALS
+  /*
+     TOTALS
      insn = instruction (mnemonic)
-     cat = category */
+     cat = category
+     ext = extension
+  */
 
   uint64_t  cat_count[CATEGORY_MAX_VALUE];
   uint64_t  insn_count[MNEMONIC_MAX_VALUE];
@@ -133,16 +138,27 @@ typedef struct {
   double    insn_percent[MNEMONIC_MAX_VALUE];
   double    failed_percent;
   
-  /* PER PROCESS
+  /*
+     PER PROCESS
      insn = instruction (mnemonic)
      cat = category
-     proc = process */
+     ext = extension
+     proc = process
+  */
   uint64_t  *proc_cat_count[CATEGORY_MAX_VALUE];
   uint64_t  *proc_insn_count[MNEMONIC_MAX_VALUE];
   double    *proc_cat_percent[CATEGORY_MAX_VALUE];
   double    *proc_insn_percent[MNEMONIC_MAX_VALUE];
   double    *proc_percent;
   double    *proc_failed_percent;
+  
+  /* Only for x86, also include ISA extensions */
+  #ifdef __x86_64__
+  uint64_t  ext_count[EXTENSION_MAX_VALUE];
+  double    ext_percent[EXTENSION_MAX_VALUE];
+  uint64_t  *proc_ext_count[EXTENSION_MAX_VALUE];
+  double    *proc_ext_percent[EXTENSION_MAX_VALUE];
+  #endif
   
   /* Per-interval counts */
   uint64_t  num_samples;

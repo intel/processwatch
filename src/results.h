@@ -17,6 +17,9 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   struct insn_info *insn_info;
   int category, mnemonic, success;
   int interval_index;
+#ifdef __x86_64__
+  int extension;
+#endif
   uint32_t hash;
 
   insn_info = data;
@@ -24,6 +27,9 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
   
   category = -1;
   mnemonic = -1;
+#ifdef __x86_64__
+  extension = -1;
+#endif
 
   #ifdef __x86_64__
     ZyanStatus status;
@@ -35,6 +41,9 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
       success = 1;
       mnemonic = results->decoded_insn.mnemonic;
       category = results->decoded_insn.meta.category;
+#ifdef __x86_64__
+      extension = results->decoded_insn.meta.isa_ext;
+#endif
     }
   #elif __aarch64__
     int count;
@@ -64,6 +73,8 @@ static int handle_sample(void *ctx, void *data, size_t data_sz) {
 #ifdef __x86_64__
     results->interval->cat_count[results->decoded_insn.meta.category]++;
     results->interval->proc_cat_count[category][interval_index]++;
+    results->interval->ext_count[results->decoded_insn.meta.isa_ext]++;
+    results->interval->proc_ext_count[extension][interval_index]++;
 #elif __aarch64__
     int i;
     // Capstone (LLVM) puts some instructions in 0, 1 or more groups
@@ -133,6 +144,13 @@ static int clear_interval_results() {
   memset(results->interval->cat_count, 0, CATEGORY_MAX_VALUE * sizeof(uint64_t));
   memset(results->interval->insn_count, 0, MNEMONIC_MAX_VALUE * sizeof(uint64_t));
   
+#ifdef __x86_64__
+  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+    memset(results->interval->proc_ext_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
+  }
+  memset(results->interval->ext_count, 0, EXTENSION_MAX_VALUE * sizeof(uint64_t));
+#endif
+  
   results->interval->pid_ctr = 0;
   results->interval_num++;
   
@@ -171,6 +189,12 @@ static void deinit_results() {
     free(results->interval->proc_insn_count[i]);
     free(results->interval->proc_insn_percent[i]);
   }
+#ifdef __x86_64__
+  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+    free(results->interval->proc_ext_count[i]);
+    free(results->interval->proc_ext_percent[i]);
+  }
+#endif
   free(results->interval);
   free(results);
 }

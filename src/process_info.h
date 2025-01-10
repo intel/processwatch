@@ -57,6 +57,13 @@ static void grow_interval_proc_arrs() {
     resize_array(results->interval->proc_insn_percent[i], old_size, new_size, double, 0, n);
   }
   
+#ifdef __x86_64__
+  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+    resize_array(results->interval->proc_ext_count[i], old_size, new_size, uint64_t, 0, n);
+    resize_array(results->interval->proc_ext_percent[i], old_size, new_size, double, 0, n);
+  }
+#endif
+  
   results->interval->proc_arr_size = new_size;
   
   return;
