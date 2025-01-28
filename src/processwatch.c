@@ -85,7 +85,7 @@ int read_opts(int argc, char **argv) {
   pw_opts.csv = 0;
   pw_opts.btf_custom_path = NULL;
   pw_opts.debug = 0;
-  pw_opts.sample_period = 10000;
+  pw_opts.sample_period = 100000;
 
   /* Column filters */
   pw_opts.col_strs = NULL;
@@ -121,7 +121,7 @@ int read_opts(int argc, char **argv) {
         printf("  -c          Prints all results in CSV format to stdout.\n");
         printf("  -p <pid>    Only profiles <pid>.\n");
         printf("  -m          Displays instruction mnemonics, instead of categories.\n");
-        printf("  -s <samp>   Profiles instructions with a sampling period of <samp>.\n");
+        printf("  -s <samp>   Profiles instructions with a sampling period of <samp>. Defaults to 100000 instructions (1 in 100000 instructions).\n");
 #ifdef __aarch64__
         printf("  -f <filter> Can be used multiple times. Defines filters for columns. Defaults to 'FPARMv8', 'NEON', 'SVE' and 'SVE2'.\n");
 #elif __x86_64__
