@@ -73,7 +73,7 @@ On Amazon Linux 2, you can do:
 ```
 sudo yum update
 sudo yum install bpftool zlib-devel zlib-static \
-  elfutils-libelf-devel-static clang cmake3 llvm \
+  elfutils-libelf-devel clang cmake3 llvm \
   glibc-static
 ```
 
