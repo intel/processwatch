@@ -38,7 +38,7 @@ git clone --recursive https://github.com/intel/processwatch.git
 If you've already cloned without `--recursive`, go into the repository directory and issue:
 ```
 git submodule init
-git submodule update
+git submodule update --init --recursive
 ```
 
 If you want to compile the tool, there are a few common packages that you'll need to install
@@ -73,7 +73,7 @@ On Amazon Linux 2, you can do:
 ```
 sudo yum update
 sudo yum install bpftool zlib-devel zlib-static \
-  elfutils-libelf-devel-static clang cmake3 llvm \
+  elfutils-libelf-devel clang cmake3 llvm \
   glibc-static
 ```
 
