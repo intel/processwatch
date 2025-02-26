@@ -131,6 +131,31 @@ enum qsort_val_type {
     case QSORT_INTERVAL_CAT_PERCENT: \
       set = results->interval->cat_percent[val]; \
       break; \
+    case QSORT_INTERVAL_INSN_COUNT: \
+      set = results->interval->insn_count[val]; \
+      break; \
+    case QSORT_INTERVAL_INSN_PERCENT: \
+      set = results->interval->insn_percent[val]; \
+      break; \
+    default: \
+      fprintf(stderr, "Invalid val_type! Aborting.\n"); \
+      exit(1); \
+      break; \
+  }
+
+#ifdef __x86_64__
+#undef get_value
+#define get_value(val, val_type, set) \
+  switch(val_type) { \
+    case QSORT_INTERVAL_PID: \
+      set = results->interval->proc_num_samples[val]; \
+      break; \
+    case QSORT_INTERVAL_CAT_COUNT: \
+      set = results->interval->cat_count[val]; \
+      break; \
+    case QSORT_INTERVAL_CAT_PERCENT: \
+      set = results->interval->cat_percent[val]; \
+      break; \
     case QSORT_INTERVAL_EXT_COUNT: \
       set = results->interval->ext_count[val]; \
       break; \
@@ -148,7 +173,8 @@ enum qsort_val_type {
       exit(1); \
       break; \
   }
-  
+#endif
+
 #define partition(vals, val_type, low, high, partition_index) \
   switch(val_type) { \
     case QSORT_INTERVAL_PID: \
