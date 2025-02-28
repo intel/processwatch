@@ -63,7 +63,7 @@ static char *default_col_strs[NUM_DEFAULT_COL_STRS] = {
 };
 static char *default_mnem_col_strs[NUM_DEFAULT_MNEM_COL_STRS] = {
 };
-static char *default_ext_col_strs = NULL;
+static char *default_ext_col_strs[1];
 
 #elif __x86_64__
   
