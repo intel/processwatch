@@ -1,15 +1,15 @@
 Process Watch
 =============
 
-This is an example of Process Watch running on an Intel® NUC running the [LULESH](https://github.com/LLNL/LULESH) workload. Note the presence of AVX, AVX2, and VFMA instructions.
-![image](https://user-images.githubusercontent.com/87155110/203642236-756ae342-b860-4cb4-8f8d-7de494218eeb.png)
+This is an example of Process Watch running on an Intel® NUC running the [LULESH](https://github.com/LLNL/LULESH) workload. Note the presence of SSE, AVX, and AVX2 instructions.
+![image](https://github.com/user-attachments/assets/647b199d-a4f2-4d34-b5e7-3c0f41249bd3)
 
 Overview
 --------
 
 Process Watch displays per-process instruction mix in real-time, organizing these
-instructions into categories. It offers a simple, table-based interface as well
-as a CSV output.
+instructions into categories. It offers a simple, tabular output in addition to
+CSV.
 
 Runtime Requirements
 --------------------
