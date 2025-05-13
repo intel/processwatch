@@ -216,6 +216,9 @@ static int program_events(int pid) {
   if(pid == -1) {
     for(cpu = 0; cpu < bpf_info->nr_cpus; cpu++) {
       retval = single_insn_event(cpu, pid);
+      if(retval == -2) { // cpu is offline
+        continue;
+      }
       if(retval < 0) {
         return -1;
       }
