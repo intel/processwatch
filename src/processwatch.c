@@ -188,7 +188,7 @@ void free_opts() {
 }
 
 int read_opts(int argc, char **argv) {
-  int option_index, i;
+  int option_index, index, elem;
   size_t size;
   int c;
 
@@ -312,6 +312,8 @@ int read_opts(int argc, char **argv) {
   }
   
   if(pw_opts.all) {
+    
+    /* Set the number of columns */
     if(pw_opts.show_mnemonics) {
       pw_opts.cols_len = MNEMONIC_MAX_VALUE + 1;
 #ifdef __x86_64__
@@ -321,11 +323,24 @@ int read_opts(int argc, char **argv) {
     } else {
       pw_opts.cols_len = CATEGORY_MAX_VALUE + 1;
     }
-    printf("cols_len is: %d\n", pw_opts.cols_len);
+    
+    /* Allocate room for the columns */
     pw_opts.cols = realloc(pw_opts.cols, sizeof(int) * pw_opts.cols_len);
-    for(i = 0; i < pw_opts.cols_len; i++) {
-      pw_opts.cols[i] = i;
+    
+    /* Loop over all categories/mnemonics/extensions and add them to
+       the columns array */
+    index = 0;
+    elem = 0;
+    while(index < pw_opts.cols_len) {
+#ifdef __aarch64__
+      /* Capstone aarch64 groups aren't consecutive :( */
+      if (cs_group_name(handle, elem) == NULL) elem++; continue;
+#endif
+      pw_opts.cols[index] = elem;
+      index++;
+      elem++;
     }
+    
   } else if(pw_opts.col_strs == NULL) {
     /* User didn't specify -f or -a */
     if(pw_opts.show_mnemonics) {
