@@ -32,8 +32,8 @@ csh handle;
 #define CATEGORY_MAX_VALUE ZYDIS_CATEGORY_MAX_VALUE
 #define EXTENSION_MAX_VALUE ZYDIS_ISA_EXT_MAX_VALUE
 #elif __aarch64__
-#define MNEMONIC_MAX_VALUE AArch64_INS_ALIAS_END
-#define CATEGORY_MAX_VALUE AArch64_GRP_ENDING
+#define MNEMONIC_MAX_VALUE (AArch64_INS_ALIAS_END-1)
+#define CATEGORY_MAX_VALUE (AArch64_GRP_ENDING-1)
 #endif
 
 /**
@@ -58,6 +58,7 @@ struct pw_opts_t {
   
   char list;
   char debug;
+  char all;
 };
 
 /**
@@ -132,10 +133,10 @@ typedef struct {
      ext = extension
   */
 
-  uint64_t  cat_count[CATEGORY_MAX_VALUE];
-  uint64_t  insn_count[MNEMONIC_MAX_VALUE];
-  double    cat_percent[CATEGORY_MAX_VALUE];
-  double    insn_percent[MNEMONIC_MAX_VALUE];
+  uint64_t  cat_count[CATEGORY_MAX_VALUE+1];
+  uint64_t  insn_count[MNEMONIC_MAX_VALUE+1];
+  double    cat_percent[CATEGORY_MAX_VALUE+1];
+  double    insn_percent[MNEMONIC_MAX_VALUE+1];
   double    failed_percent;
   
   /*
@@ -145,19 +146,19 @@ typedef struct {
      ext = extension
      proc = process
   */
-  uint64_t  *proc_cat_count[CATEGORY_MAX_VALUE];
-  uint64_t  *proc_insn_count[MNEMONIC_MAX_VALUE];
-  double    *proc_cat_percent[CATEGORY_MAX_VALUE];
-  double    *proc_insn_percent[MNEMONIC_MAX_VALUE];
+  uint64_t  *proc_cat_count[CATEGORY_MAX_VALUE+1];
+  uint64_t  *proc_insn_count[MNEMONIC_MAX_VALUE+1];
+  double    *proc_cat_percent[CATEGORY_MAX_VALUE+1];
+  double    *proc_insn_percent[MNEMONIC_MAX_VALUE+1];
   double    *proc_percent;
   double    *proc_failed_percent;
   
   /* Only for x86, also include ISA extensions */
   #ifdef __x86_64__
-  uint64_t  ext_count[EXTENSION_MAX_VALUE];
-  double    ext_percent[EXTENSION_MAX_VALUE];
-  uint64_t  *proc_ext_count[EXTENSION_MAX_VALUE];
-  double    *proc_ext_percent[EXTENSION_MAX_VALUE];
+  uint64_t  ext_count[EXTENSION_MAX_VALUE+1];
+  double    ext_percent[EXTENSION_MAX_VALUE+1];
+  uint64_t  *proc_ext_count[EXTENSION_MAX_VALUE+1];
+  double    *proc_ext_percent[EXTENSION_MAX_VALUE+1];
   #endif
   
   /* Per-interval counts */

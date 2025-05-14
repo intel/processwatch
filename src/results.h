@@ -133,22 +133,22 @@ static int clear_interval_results() {
   results->interval->num_samples = 0;
   results->interval->num_failed = 0;
   
-  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
     memset(results->interval->proc_cat_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
-  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
     memset(results->interval->proc_insn_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
   
   /* Per-category or per-instruction arrays */
-  memset(results->interval->cat_count, 0, CATEGORY_MAX_VALUE * sizeof(uint64_t));
-  memset(results->interval->insn_count, 0, MNEMONIC_MAX_VALUE * sizeof(uint64_t));
+  memset(results->interval->cat_count, 0, (CATEGORY_MAX_VALUE + 1) * sizeof(uint64_t));
+  memset(results->interval->insn_count, 0, (MNEMONIC_MAX_VALUE + 1) * sizeof(uint64_t));
   
 #ifdef __x86_64__
-  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+  for(i = 0; i <= EXTENSION_MAX_VALUE; i++) {
     memset(results->interval->proc_ext_count[i], 0, results->interval->proc_arr_size * sizeof(uint64_t));
   }
-  memset(results->interval->ext_count, 0, EXTENSION_MAX_VALUE * sizeof(uint64_t));
+  memset(results->interval->ext_count, 0, (EXTENSION_MAX_VALUE + 1) * sizeof(uint64_t));
 #endif
   
   results->interval->pid_ctr = 0;
@@ -181,16 +181,16 @@ static void deinit_results() {
   free(results->interval->proc_num_failed);
   free(results->interval->proc_percent);
   free(results->interval->proc_failed_percent);
-  for(i = 0; i < CATEGORY_MAX_VALUE; i++) {
+  for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
     free(results->interval->proc_cat_count[i]);
     free(results->interval->proc_cat_percent[i]);
   }
-  for(i = 0; i < MNEMONIC_MAX_VALUE; i++) {
+  for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
     free(results->interval->proc_insn_count[i]);
     free(results->interval->proc_insn_percent[i]);
   }
 #ifdef __x86_64__
-  for(i = 0; i < EXTENSION_MAX_VALUE; i++) {
+  for(i = 0; i <= EXTENSION_MAX_VALUE; i++) {
     free(results->interval->proc_ext_count[i]);
     free(results->interval->proc_ext_percent[i]);
   }

@@ -14,14 +14,15 @@ CSV.
 Runtime Requirements
 --------------------
 
-For the binary releases, the only requirement is that you have BTF metadata in your kernel.  If the file
-`/sys/kernel/btf/vmlinux` exists on your system, then you have it. If not, then your
-kernel does not have BTF metadata.
+For the binary releases, the only requirement is that you have BTF metadata in
+your kernel.  If the file `/sys/kernel/btf/vmlinux` exists on your system, then
+you have it. If not, then your kernel does not have BTF metadata.
 
-If your kernel does not have this feature, you can enable it by installing or compiling
-a kernel with the `CONFIG_DEBUG_INFO_BTF` configuration option enabled.  Keep in mind that
-if you're compiling the kernel yourself, you need to install the `pahole` commandline utility
-to compile a kernel with this option enabled.
+If your kernel does not have this feature, you can enable it by installing or
+compiling a kernel with the `CONFIG_DEBUG_INFO_BTF` configuration option
+enabled.  Keep in mind that if you're compiling the kernel yourself, you need to
+install the `pahole` commandline utility to compile a kernel with this option
+enabled.
 
 There are two ways to compile Process Watch:
 1. `./build.sh`. This executable should work in kernel version `5.8.0` and newer.
