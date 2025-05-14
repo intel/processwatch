@@ -174,6 +174,45 @@ void convert_col_strs() {
   }
 }
 
+#ifdef __aarch64__
+int aarch_get_num_cols() {
+  int i, retval;
+  
+  /* Needed because Capstone's enums aren't consecutive, and their
+     final value also isn't the final value (it's the final value + 1). */
+  retval = 0;
+  if(pw_opts.show_mnemonics) {
+    for(i = 0; i <= MNEMONIC_MAX_VALUE; i++) {
+      if(cs_insn_name(handle, i) == NULL) continue;
+      retval++;
+    }
+  } else {
+    for(i = 0; i <= CATEGORY_MAX_VALUE; i++) {
+      if(cs_group_name(handle, i) == NULL) continue;
+      retval++;
+    }
+  }
+  
+  return retval;
+}
+#endif
+
+#ifdef __x86_64__
+int x86_get_num_cols() {
+  int retval;
+  
+  if(pw_opts.show_mnemonics) {
+    retval = MNEMONIC_MAX_VALUE + 1;
+  } else if(pw_opts.show_extensions) {
+    retval = EXTENSION_MAX_VALUE + 1;
+  } else {
+    retval = CATEGORY_MAX_VALUE + 1;
+  }
+  
+  return retval;
+}
+#endif
+
 void free_opts() {
   int i;
   
@@ -314,15 +353,14 @@ int read_opts(int argc, char **argv) {
   if(pw_opts.all) {
     
     /* Set the number of columns */
-    if(pw_opts.show_mnemonics) {
-      pw_opts.cols_len = MNEMONIC_MAX_VALUE + 1;
-#ifdef __x86_64__
-    } else if(pw_opts.show_extensions) {
-      pw_opts.cols_len = EXTENSION_MAX_VALUE + 1;
-#endif
-    } else {
-      pw_opts.cols_len = CATEGORY_MAX_VALUE + 1;
-    }
+    #ifdef __x86_64__
+    pw_opts.cols_len = x86_get_num_cols();
+    #elif __aarch64__
+    pw_opts.cols_len = aarch_get_num_cols();
+    #else
+    fprintf(stderr, "Invalid architecture! Aborting.\n");
+    exit(1);
+    #endif
     
     /* Allocate room for the columns */
     pw_opts.cols = realloc(pw_opts.cols, sizeof(int) * pw_opts.cols_len);
@@ -334,7 +372,10 @@ int read_opts(int argc, char **argv) {
     while(index < pw_opts.cols_len) {
 #ifdef __aarch64__
       /* Capstone aarch64 groups aren't consecutive :( */
-      if (cs_group_name(handle, elem) == NULL) elem++; continue;
+      if (cs_group_name(handle, elem) == NULL) {
+        elem++;
+        continue;
+      }
 #endif
       pw_opts.cols[index] = elem;
       index++;
