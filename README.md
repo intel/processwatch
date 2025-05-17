@@ -11,6 +11,39 @@ Process Watch displays per-process instruction mix in real-time, organizing thes
 instructions into categories. It offers a simple, tabular output in addition to
 CSV.
 
+Examples
+--------
+
+To display the default categories in a table every 2 seconds:
+```
+$ ./processwatch
+```
+
+To show mnemonics instead of instruction categories:
+```
+$ ./processwatch -m
+```
+
+To list available categories/mnemonics/extensions, add `-l`:
+```
+$ ./processwatch -l
+```
+
+To show specific categories/mnemonics/extensions, specify them with multiple `-f` arguments:
+```
+$ ./processwatch -f PUSH -f POP
+```
+
+To show *all* categories/mnemonics/extensions, to be parsed by some script:
+```
+$ ./processwatch -a
+```
+
+To show all available switches:
+```
+$ ./processwatch -h
+```
+
 Runtime Requirements
 --------------------
 
@@ -108,21 +141,6 @@ CSV Mode
 
 To enable this mode, pass `--csv` or `-c` on the command-line. Output will go to
 `stdout`. Send `SIGTERM` to kill it.
-
-Usage
------
-
-| Long Form                  | Short Form | Description                                                                           |
-|----------------------------|------------|---------------------------------------------------------------------------------------|
-| `--interval=[sec]`         | `-i`       | Modifies the interval length. Default is 2.                                           |
-| `--num-intervals`          | `-n`       | Limits runtime to <num> intervals.                                                    |
-| `--csv`                    | `-c`       | Enables CSV output to `stdout`. Kill with SIGTERM.                                    |
-| `--pid=[pid]`              | `-p`       | Profiles a specific PID rather than all processes.                                    |
-| `--mnemonics`              | `-m`       | Displays individual instruction mnemonics instead of categories.                      |
-| `--sample_period=[val]`    | `-s`       | Sets the `perf` rate at which to sample instructions.                                 |
-| `--filter=[val]`           | `-f`       | Filters instruction mnemonics or categories. Ignores case. Can pass multiple times.   |
-| `--list`                   | `-l`       | Prints available instruction categories (or mnemonics if `-m` is specified) and exits.|
-| `--help`                   | `-h`       | Help!                                                                                 |
 
 Known Build Issues
 ------------------
